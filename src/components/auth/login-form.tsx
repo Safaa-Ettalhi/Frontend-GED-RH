@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Loader2, ArrowRight } from "lucide-react"
 import { toast } from "sonner"
+import Cookies from "js-cookie"
 import api from "@/lib/api"
 
 import { Button } from "@/components/ui/button"
@@ -39,9 +40,11 @@ export function LoginForm() {
 
         try {
             const response = await api.post("/auth/login", values)
-            const { access_token } = response.data
+            const { accessToken } = response.data
 
-            localStorage.setItem("token", access_token)
+            localStorage.setItem("token", accessToken)
+            Cookies.set("token", accessToken, { expires: 1, path: '/' })
+
             toast.success("CONNEXION AUTHENTIFIÉE.")
             router.push("/dashboard")
             router.refresh()
