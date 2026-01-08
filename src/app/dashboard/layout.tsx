@@ -26,7 +26,7 @@ export default function DashboardLayout({
     return (
         <div className="min-h-screen bg-background text-foreground font-sans">
             <div className="grid lg:grid-cols-[250px_1fr] min-h-screen">
-                
+
                 <aside className="hidden lg:block border-r border-border bg-card">
                     <div className="flex h-full flex-col">
                         <div className="flex h-16 items-center px-6 border-b border-border">
@@ -39,78 +39,98 @@ export default function DashboardLayout({
                                     return (
                                         <Link
                                             key={item.href}
-                                            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium uppercase tracking-wide rounded-none border-l-2 transition-colors ${
-                                                isActive 
-                                                ? "bg-primary/5 text-primary border-primary" 
-                                                : "text-muted-foreground hover:text-foreground hover:bg-muted border-transparent"
-                                            }`}
+                                            className={`flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 group ${isActive
+                                                ? "bg-red-600 text-white shadow-md shadow-red-200"
+                                                : "text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                                }`}
                                             href={item.href}
                                         >
-                                            <item.icon className="h-4 w-4" />
+                                            <item.icon className={`h-4 w-4 ${isActive ? "text-white" : "text-gray-400 group-hover:text-red-600"}`} />
                                             {item.label}
                                         </Link>
                                     )
                                 })}
                             </nav>
                         </div>
-                        <div className="p-4 border-t border-border">
-                           <LogoutButton />
+                        <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+                            <div className="flex items-center justify-between w-full gap-2">
+                                <Link href="/dashboard/profile" className="flex items-center gap-3 overflow-hidden flex-1 hover:bg-gray-200/50 p-2 -ml-2 rounded-lg transition-colors group">
+                                    <div className="h-9 w-9 rounded-full bg-red-600 text-white flex-shrink-0 flex items-center justify-center font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
+                                        AD
+                                    </div>
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className="text-sm font-semibold truncate text-gray-900 group-hover:text-red-700 transition-colors">Administrateur</span>
+                                        <span className="text-[10px] text-muted-foreground truncate" title="admin@example.com">admin@example.com</span>
+                                    </div>
+                                </Link>
+                                <LogoutButton />
+                            </div>
                         </div>
                     </div>
                 </aside>
 
                 {isMobileMenuOpen && (
                     <div className="fixed inset-0 z-50 lg:hidden">
-                        <div 
+                        <div
                             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
                             onClick={() => setIsMobileMenuOpen(false)}
                         />
 
-                        <div className="absolute left-0 top-0 bottom-0 w-3/4 max-w-sm bg-background border-r border-border p-6 shadow-2xl animate-in slide-in-from-left duration-300">
-                             <div className="flex items-center justify-between mb-8">
+                        <div className="absolute left-0 top-0 bottom-0 w-3/4 max-w-sm bg-background border-r border-border p-6 shadow-2xl animate-in slide-in-from-left duration-300 flex flex-col">
+                            <div className="flex items-center justify-between mb-8">
                                 <div onClick={() => setIsMobileMenuOpen(false)}>
                                     <Logo size="sm" href="#" />
                                 </div>
                                 <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
                                     <X className="h-6 w-6" />
                                 </Button>
-                             </div>
-                             <nav className="space-y-2">
+                            </div>
+                            <nav className="space-y-2 flex-1">
                                 {navItems.map((item) => {
                                     const isActive = pathname === item.href
                                     return (
                                         <Link
                                             key={item.href}
                                             onClick={() => setIsMobileMenuOpen(false)}
-                                            className={`flex items-center gap-3 px-3 py-3 text-sm font-medium uppercase tracking-wide rounded-none border-l-2 transition-colors ${
-                                                isActive 
-                                                ? "bg-primary/5 text-primary border-primary" 
-                                                : "text-muted-foreground hover:text-foreground hover:bg-muted border-transparent"
-                                            }`}
+                                            className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 group ${isActive
+                                                ? "bg-red-600 text-white shadow-md shadow-red-200"
+                                                : "text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                                }`}
                                             href={item.href}
                                         >
-                                            <item.icon className="h-5 w-5" />
+                                            <item.icon className={`h-5 w-5 ${isActive ? "text-white" : "text-gray-400 group-hover:text-red-600"}`} />
                                             {item.label}
                                         </Link>
                                     )
                                 })}
-                             </nav>
-                             <div className="absolute bottom-6 left-6 right-6">
-                                <LogoutButton />
-                             </div>
+                            </nav>
+                            <div className="pt-6 border-t border-gray-100 mt-auto">
+                                <div className="flex items-center justify-between w-full gap-2">
+                                    <Link href="/dashboard/profile" className="flex items-center gap-3 overflow-hidden flex-1 hover:bg-gray-200/50 p-2 -ml-2 rounded-lg transition-colors group">
+                                        <div className="h-9 w-9 rounded-full bg-red-600 text-white flex-shrink-0 flex items-center justify-center font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
+                                            AD
+                                        </div>
+                                        <div className="flex flex-col overflow-hidden">
+                                            <span className="text-sm font-semibold truncate text-gray-900 group-hover:text-red-700 transition-colors">Administrateur</span>
+                                            <span className="text-[10px] text-muted-foreground truncate" title="admin@example.com">admin@example.com</span>
+                                        </div>
+                                    </Link>
+                                    <LogoutButton />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
-                
-                <main className="flex flex-col bg-background min-h-0 overflow-hidden">
-                    <header className="flex h-16 items-center justify-between border-b border-border px-4 lg:px-10 shrink-0">
+
+                <main className="flex flex-col bg-gray-50/30 min-h-0 overflow-hidden">
+                    <header className="flex h-16 items-center justify-between border-b border-border bg-background/50 backdrop-blur-sm px-4 lg:px-10 shrink-0 sticky top-0 z-10">
                         <div className="flex items-center gap-4">
                             <div className="lg:hidden">
                                 <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(true)}>
                                     <Menu className="h-6 w-6" />
                                 </Button>
                             </div>
-                            <h1 className="font-bold uppercase tracking-widest text-lg lg:text-xl truncate">
+                            <h1 className="font-semibold text-lg lg:text-xl tracking-tight text-foreground/80">
                                 Espace Recruteur
                             </h1>
                         </div>
