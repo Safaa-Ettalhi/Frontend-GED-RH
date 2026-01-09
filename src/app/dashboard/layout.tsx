@@ -1,12 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { FileText, Users, Calendar, LayoutDashboard, Menu, X } from "lucide-react"
 import { LogoutButton } from "@/components/auth/logout-button"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Logo } from "@/components/logo"
+import api from "@/lib/api"
+
+interface User {
+    name: string
+    email: string
+}
 
 export default function DashboardLayout({
     children,
@@ -14,7 +20,29 @@ export default function DashboardLayout({
     children: React.ReactNode
 }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+    const [user, setUser] = useState<User | null>(null)
     const pathname = usePathname()
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await api.get("/users/me")
+                setUser(res.data)
+            } catch (error) {
+                console.error("Error fetching user", error)
+            }
+        }
+        fetchUser()
+    }, [])
+
+    const getInitials = (name: string) => {
+        return name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2)
+    }
 
     const navItems = [
         { href: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord" },
@@ -56,11 +84,15 @@ export default function DashboardLayout({
                             <div className="flex items-center justify-between w-full gap-2">
                                 <Link href="/dashboard/profile" className="flex items-center gap-3 overflow-hidden flex-1 hover:bg-gray-200/50 p-2 -ml-2 rounded-lg transition-colors group">
                                     <div className="h-9 w-9 rounded-full bg-red-600 text-white flex-shrink-0 flex items-center justify-center font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
-                                        AD
+                                        {user ? getInitials(user.name) : "..."}
                                     </div>
                                     <div className="flex flex-col overflow-hidden">
-                                        <span className="text-sm font-semibold truncate text-gray-900 group-hover:text-red-700 transition-colors">Administrateur</span>
-                                        <span className="text-[10px] text-muted-foreground truncate" title="admin@example.com">admin@example.com</span>
+                                        <span className="text-sm font-semibold truncate text-gray-900 group-hover:text-red-700 transition-colors">
+                                            {user ? user.name : "Chargement..."}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground truncate" title={user?.email}>
+                                            {user ? user.email : "..."}
+                                        </span>
                                     </div>
                                 </Link>
                                 <LogoutButton />
@@ -108,11 +140,15 @@ export default function DashboardLayout({
                                 <div className="flex items-center justify-between w-full gap-2">
                                     <Link href="/dashboard/profile" className="flex items-center gap-3 overflow-hidden flex-1 hover:bg-gray-200/50 p-2 -ml-2 rounded-lg transition-colors group">
                                         <div className="h-9 w-9 rounded-full bg-red-600 text-white flex-shrink-0 flex items-center justify-center font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
-                                            AD
+                                            {user ? getInitials(user.name) : "..."}
                                         </div>
                                         <div className="flex flex-col overflow-hidden">
-                                            <span className="text-sm font-semibold truncate text-gray-900 group-hover:text-red-700 transition-colors">Administrateur</span>
-                                            <span className="text-[10px] text-muted-foreground truncate" title="admin@example.com">admin@example.com</span>
+                                            <span className="text-sm font-semibold truncate text-gray-900 group-hover:text-red-700 transition-colors">
+                                                {user ? user.name : "Chargement..."}
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground truncate" title={user?.email}>
+                                                {user ? user.email : "..."}
+                                            </span>
                                         </div>
                                     </Link>
                                     <LogoutButton />
