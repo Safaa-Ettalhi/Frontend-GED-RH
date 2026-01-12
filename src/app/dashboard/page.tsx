@@ -18,7 +18,7 @@ export default function DashboardPage() {
         )
     }
 
-    if (role === UserRole.ADMIN && organizationId) {
+    if (role === UserRole.ADMIN) {
         return <AdminDashboard user={user} organizationId={organizationId} />
     }
 
