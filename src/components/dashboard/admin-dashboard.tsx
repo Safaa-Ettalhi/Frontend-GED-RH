@@ -9,7 +9,7 @@ import type { User, Candidate, Interview, DashboardStats, DashboardMetricProps, 
 
 interface AdminDashboardProps {
     user: User | null
-    organizationId: number
+    organizationId?: number
 }
 
 export function AdminDashboard({ user, organizationId }: AdminDashboardProps) {
@@ -25,11 +25,22 @@ export function AdminDashboard({ user, organizationId }: AdminDashboardProps) {
     useEffect(() => {
         const fetchData = async () => {
             try {
+                const candidatesUrl = '/candidates' 
+                const notificationsUrl = organizationId 
+                    ? `/notifications/count?organizationId=${organizationId}`
+                    : '/notifications/count'
+                const interviewsUrl = organizationId
+                    ? `/interviews?organizationId=${organizationId}`
+                    : '/interviews'
+                const documentsUrl = organizationId
+                    ? `/documents?organizationId=${organizationId}`
+                    : '/documents'
+
                 const [candidatesRes, notificationsRes, interviewsRes, documentsRes] = await Promise.all([
-                    api.get(`/candidates?organizationId=${organizationId}`),
-                    api.get(`/notifications/count?organizationId=${organizationId}`),
-                    api.get(`/interviews?organizationId=${organizationId}`),
-                    api.get(`/documents?organizationId=${organizationId}`)
+                    api.get(candidatesUrl),
+                    organizationId ? api.get(notificationsUrl) : Promise.resolve({ data: { count: 0 } }),
+                    organizationId ? api.get(interviewsUrl) : Promise.resolve({ data: [] }),
+                    organizationId ? api.get(documentsUrl) : Promise.resolve({ data: [] })
                 ])
 
                 const today = new Date().toISOString().split('T')[0]
@@ -41,9 +52,9 @@ export function AdminDashboard({ user, organizationId }: AdminDashboardProps) {
 
                 setStats({
                     candidatesCount: candidatesRes.data.length,
-                    unreadNotifications: notificationsRes.data.count,
+                    unreadNotifications: notificationsRes.data.count || 0,
                     interviewsToday: todayInterviews.length,
-                    documentsCount: documentsRes.data.length,
+                    documentsCount: documentsRes.data.length || 0,
                     recentCandidates: sortedCandidates
                 })
             } catch (error) {
@@ -55,9 +66,7 @@ export function AdminDashboard({ user, organizationId }: AdminDashboardProps) {
             }
         }
 
-        if (organizationId) {
-            fetchData()
-        }
+        fetchData()
     }, [organizationId])
 
     if (loading) {
