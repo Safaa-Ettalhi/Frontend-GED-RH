@@ -12,6 +12,8 @@ import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
+import { REGISTER_ROLE_OPTIONS, UserRole } from "@/lib/roles"
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -24,6 +26,9 @@ const formSchema = z.object({
         message: "MOT DE PASSE (6+ CAR).",
     }),
     confirmPassword: z.string(),
+    role: z.nativeEnum(UserRole, {
+        message: "RÔLE REQUIS.",
+    }),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "MOTS DE PASSE DIFFÉRENTS",
     path: ["confirmPassword"],
@@ -40,6 +45,7 @@ export function RegisterForm() {
             email: "",
             password: "",
             confirmPassword: "",
+            role: UserRole.CANDIDATE,
         },
     })
 
@@ -66,7 +72,7 @@ export function RegisterForm() {
 
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Name Field */}
+            {/* Name  */}
             <div className="space-y-2">
                 <Label htmlFor="name" className={labelClasses}>
                     Nom complet
@@ -89,7 +95,7 @@ export function RegisterForm() {
                 )}
             </div>
 
-            {/* Email Field */}
+            {/* Email */}
             <div className="space-y-2">
                 <Label htmlFor="email" className={labelClasses}>
                     Email professionnel
@@ -112,7 +118,7 @@ export function RegisterForm() {
                 )}
             </div>
 
-            {/* Password Field */}
+            {/* Password */}
             <div className="space-y-2">
                 <Label htmlFor="password" className={labelClasses}>
                     Mot de passe
@@ -134,7 +140,7 @@ export function RegisterForm() {
                 )}
             </div>
 
-            {/* Confirm Password Field */}
+            {/* Confirm Password */}
             <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className={labelClasses}>
                     Confirmer le mot de passe
@@ -154,6 +160,29 @@ export function RegisterForm() {
                         {form.formState.errors.confirmPassword.message}
                     </p>
                 )}
+            </div>
+
+            {/* Role */}
+            <div className="space-y-2">
+                <Label htmlFor="role" className={labelClasses}>
+                    Rôle
+                </Label>
+                <Select
+                    id="role"
+                    className={inputClasses}
+                    disabled={isLoading}
+                    placeholder="Sélectionnez votre rôle"
+                    options={REGISTER_ROLE_OPTIONS}
+                    {...form.register("role", { required: true })}
+                />
+                {form.formState.errors.role && (
+                    <p className={errorClasses}>
+                        {form.formState.errors.role.message}
+                    </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                    Choisissez votre rôle : RH pour gérer les candidats, Manager pour superviser, ou Candidat pour postuler.
+                </p>
             </div>
 
             {/* Submit Button */}
