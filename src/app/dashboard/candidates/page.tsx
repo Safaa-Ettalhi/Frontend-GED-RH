@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Plus, Filter, Mail, Phone, Calendar, ArrowRight, Loader2, XCircle} from "lucide-react"
+import { Search, Plus, Filter, Mail, Phone, Calendar, ArrowRight, Loader2, XCircle, Building2} from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
+import { useRole } from "@/hooks/useRole"
+import { UserRole } from "@/lib/roles"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -51,26 +53,32 @@ interface Candidate {
     state: CandidateState
     createdAt: string
     jobOffer?: { title: string }
+    organization?: { id: number; name: string }
+    organizationId?: number
 }
 
 export default function CandidatesPage() {
+    const { user, role, organizationId } = useRole()
     const [candidates, setCandidates] = useState<Candidate[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedState, setSelectedState] = useState<string>("ALL")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [user, setUser] = useState<any>(null)
 
     useEffect(() => {
         const fetchCandidates = async () => {
             try {
-                const userRes = await api.get("/users/me")
-                setUser(userRes.data)
+                const isAdmin = role === UserRole.ADMIN
+                const url = isAdmin 
+                    ? '/candidates' 
+                    : `/candidates?organizationId=${organizationId}`
+                
+                if (!isAdmin && !organizationId) {
+                    toast.error("Aucune organisation trouvée")
+                    setIsLoading(false)
+                    return
+                }
 
-                const orgId = userRes.data.userOrganizations?.[0]?.organizationId
-                if (!orgId) return
-
-                const res = await api.get(`/candidates?organizationId=${orgId}`)
+                const res = await api.get(url)
                 setCandidates(res.data)
             } catch (error) {
                 console.error("Error fetching candidates", error)
@@ -80,21 +88,34 @@ export default function CandidatesPage() {
             }
         }
         fetchCandidates()
-    }, [])
+    }, [role, organizationId])
 
     const handleStateChange = async (candidateId: number, newState: CandidateState) => {
         if (!user) return
-        const orgId = user.userOrganizations?.[0]?.organizationId
+        
+        const candidate = candidates.find(c => c.id === candidateId)
+        const orgId = role === UserRole.ADMIN && candidate?.organizationId 
+            ? candidate.organizationId 
+            : organizationId
+
+        if (!orgId) {
+            toast.error("Impossible de déterminer l'organisation")
+            return
+        }
 
         try {
             setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, state: newState } : c))
 
-            await api.patch(`/candidates/${candidateId}/state?organizationId=${orgId}`, { state: newState })
+            await api.patch(`/candidates/${candidateId}/state?organizationId=${orgId}`, { newState })
             toast.success(`Statut mis à jour : ${STATE_LABELS[newState]}`)
         } catch (error) {
             console.error("Error updating state", error)
             toast.error("Erreur lors de la mise à jour du statut")
-            // Revert on error (could fetch again)
+            // Recharger les candidats en cas d'erreur
+            const isAdmin = role === UserRole.ADMIN
+            const url = isAdmin ? '/candidates' : `/candidates?organizationId=${organizationId}`
+            const res = await api.get(url)
+            setCandidates(res.data)
         }
     }
 
@@ -205,6 +226,12 @@ export default function CandidatesPage() {
                             {/* Meta & Status */}
                             <div className="flex items-center justify-between md:justify-end gap-6 flex-1 md:flex-none w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-50">
                                 <div className="flex flex-col items-start md:items-end gap-1">
+                                    {role === UserRole.ADMIN && candidate.organization && (
+                                        <div className="flex items-center gap-1 text-xs font-medium text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                                            <Building2 className="h-3 w-3" />
+                                            {candidate.organization.name}
+                                        </div>
+                                    )}
                                     {candidate.jobOffer ? (
                                         <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
                                             {candidate.jobOffer.title}
