@@ -1,18 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { FileText, Users, Calendar, LayoutDashboard, Menu, X } from "lucide-react"
+import { FileText, Users, Calendar, LayoutDashboard, Menu, X, Settings, Building2, Briefcase, UserCog } from "lucide-react"
 import { LogoutButton } from "@/components/auth/logout-button"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Logo } from "@/components/logo"
-import api from "@/lib/api"
-
-interface User {
-    name: string
-    email: string
-}
+import { useRole } from "@/hooks/useRole"
+import { UserRole, ROLE_LABELS } from "@/lib/roles"
 
 export default function DashboardLayout({
     children,
@@ -20,36 +16,45 @@ export default function DashboardLayout({
     children: React.ReactNode
 }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-    const [user, setUser] = useState<User | null>(null)
+    const { user, role, permissions } = useRole()
     const pathname = usePathname()
-
-    useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const res = await api.get("/users/me")
-                setUser(res.data)
-            } catch (error) {
-                console.error("Error fetching user", error)
-            }
-        }
-        fetchUser()
-    }, [])
 
     const getInitials = (name: string) => {
         return name
-            .split(" ")
+            ?.split(" ")
             .map((n) => n[0])
             .join("")
             .toUpperCase()
-            .slice(0, 2)
+            .slice(0, 2) || "U"
     }
 
-    const navItems = [
-        { href: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord" },
-        { href: "/dashboard/documents", icon: FileText, label: "Documents" },
-        { href: "/dashboard/candidates", icon: Users, label: "Candidats" },
-        { href: "/dashboard/calendar", icon: Calendar, label: "Entretiens" },
+    const baseNavItems = [
+        { href: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord", roles: [UserRole.ADMIN, UserRole.RH, UserRole.MANAGER, UserRole.CANDIDATE] },
     ]
+
+    const hrNavItems = [
+        { href: "/dashboard/candidates", icon: Users, label: "Candidats", roles: [UserRole.ADMIN, UserRole.RH, UserRole.MANAGER] },
+        { href: "/dashboard/documents", icon: FileText, label: "Documents", roles: [UserRole.ADMIN, UserRole.RH, UserRole.MANAGER] },
+        { href: "/dashboard/calendar", icon: Calendar, label: "Entretiens", roles: [UserRole.ADMIN, UserRole.RH, UserRole.MANAGER] },
+    ]
+
+    const formsNavItems = [
+        { href: "/dashboard/forms", icon: FileText, label: "Formulaires", roles: [UserRole.ADMIN, UserRole.RH] },
+    ]
+
+    const adminNavItems = [
+        { href: "/dashboard/users", icon: UserCog, label: "Utilisateurs", roles: [UserRole.ADMIN] },
+        { href: "/dashboard/organizations", icon: Building2, label: "Organisations", roles: [UserRole.ADMIN] },
+        { href: "/dashboard/settings", icon: Settings, label: "Paramètres", roles: [UserRole.ADMIN] },
+    ]
+
+    const candidateNavItems = [
+        { href: "/offres", icon: Briefcase, label: "Offres d'emploi", roles: [UserRole.CANDIDATE] },
+        { href: "/dashboard/applications", icon: FileText, label: "Mes candidatures", roles: [UserRole.CANDIDATE] },
+    ]
+
+    const allNavItems = [...baseNavItems, ...hrNavItems, ...formsNavItems, ...adminNavItems, ...candidateNavItems]
+    const navItems = allNavItems.filter(item => item.roles.includes(role))
 
     return (
         <div className="min-h-screen bg-background text-foreground font-sans">
@@ -93,6 +98,11 @@ export default function DashboardLayout({
                                         <span className="text-[10px] text-muted-foreground truncate" title={user?.email}>
                                             {user ? user.email : "..."}
                                         </span>
+                                        {user && (
+                                            <span className="text-[10px] text-muted-foreground/70 mt-0.5">
+                                                {ROLE_LABELS[role as UserRole] || role}
+                                            </span>
+                                        )}
                                     </div>
                                 </Link>
                                 <LogoutButton />
@@ -149,6 +159,11 @@ export default function DashboardLayout({
                                             <span className="text-[10px] text-muted-foreground truncate" title={user?.email}>
                                                 {user ? user.email : "..."}
                                             </span>
+                                            {user && (
+                                                <span className="text-[10px] text-muted-foreground/70 mt-0.5">
+                                                    {ROLE_LABELS[role as UserRole] || role}
+                                                </span>
+                                            )}
                                         </div>
                                     </Link>
                                     <LogoutButton />
