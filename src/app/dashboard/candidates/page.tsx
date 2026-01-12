@@ -15,7 +15,6 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-// Enum matching backend
 enum CandidateState {
     NOUVEAU = 'nouveau',
     PRESELECTIONNE = 'preselectionne',
@@ -65,14 +64,12 @@ export default function CandidatesPage() {
     useEffect(() => {
         const fetchCandidates = async () => {
             try {
-                // 1. Get User to get OrgId
                 const userRes = await api.get("/users/me")
                 setUser(userRes.data)
 
                 const orgId = userRes.data.userOrganizations?.[0]?.organizationId
                 if (!orgId) return
 
-                // 2. Get Candidates
                 const res = await api.get(`/candidates?organizationId=${orgId}`)
                 setCandidates(res.data)
             } catch (error) {
@@ -90,7 +87,6 @@ export default function CandidatesPage() {
         const orgId = user.userOrganizations?.[0]?.organizationId
 
         try {
-            // Optimistic update
             setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, state: newState } : c))
 
             await api.patch(`/candidates/${candidateId}/state?organizationId=${orgId}`, { state: newState })
@@ -154,11 +150,11 @@ export default function CandidatesPage() {
                             size="sm"
                             onClick={() => setSelectedState(state)}
                             className={`rounded-full whitespace-nowrap ${selectedState === state
-                                ? STATE_COLORS[state].replace('bg-', 'bg-opacity-100 ').replace('text-', 'text-white ') + ' bg-gray-100' // Simple active state for now
+                                ? STATE_COLORS[state].replace('bg-', 'bg-opacity-100 ').replace('text-', 'text-white ') + ' bg-gray-100' 
                                 : "text-gray-600 hover:bg-gray-50"
                                 } ${selectedState === state ? 'bg-gray-100 font-medium' : ''}`}
                         >
-                            {/* Quick hack for visual indication, better logic needed for true dynamic colors in buttons */}
+                           
                             <span className={`w-2 h-2 rounded-full mr-2 ${STATE_COLORS[state].split(' ')[1].replace('text-', 'bg-')}`} />
                             {STATE_LABELS[state]}
                         </Button>
@@ -201,6 +197,7 @@ export default function CandidatesPage() {
                                                 <span>{candidate.phone}</span>
                                             </div>
                                         )}
+
                                     </div>
                                 </div>
                             </div>
