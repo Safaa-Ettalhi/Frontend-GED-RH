@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Plus, Filter, Mail, Phone, Calendar, ArrowRight, Loader2, XCircle, Building2} from "lucide-react"
+import { Search, Plus, Filter, Mail, Phone, Calendar, ArrowRight, Loader2, XCircle} from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,55 +67,45 @@ export default function CandidatesPage() {
     useEffect(() => {
         const fetchCandidates = async () => {
             try {
-                const isAdmin = role === UserRole.ADMIN
-                const url = isAdmin 
-                    ? '/candidates' 
-                    : `/candidates?organizationId=${organizationId}`
+                const url = organizationId 
+                    ? `/candidates?organizationId=${organizationId}`
+                    : '/candidates'
                 
-                if (!isAdmin && !organizationId) {
-                    toast.error("Aucune organisation trouvée")
-                    setIsLoading(false)
-                    return
-                }
-
                 const res = await api.get(url)
-                setCandidates(res.data)
+                setCandidates(res.data || [])
             } catch (error) {
                 console.error("Error fetching candidates", error)
                 toast.error("Erreur lors du chargement des candidats")
+                setCandidates([])
             } finally {
                 setIsLoading(false)
             }
         }
         fetchCandidates()
-    }, [role, organizationId])
+    }, [organizationId])
 
     const handleStateChange = async (candidateId: number, newState: CandidateState) => {
         if (!user) return
         
-        const candidate = candidates.find(c => c.id === candidateId)
-        const orgId = role === UserRole.ADMIN && candidate?.organizationId 
-            ? candidate.organizationId 
-            : organizationId
-
-        if (!orgId) {
-            toast.error("Impossible de déterminer l'organisation")
-            return
-        }
-
         try {
             setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, state: newState } : c))
 
-            await api.patch(`/candidates/${candidateId}/state?organizationId=${orgId}`, { newState })
+            const candidate = candidates.find(c => c.id === candidateId)
+            const orgId = candidate?.organizationId || organizationId
+            const url = orgId 
+                ? `/candidates/${candidateId}/state?organizationId=${orgId}`
+                : `/candidates/${candidateId}/state`
+            
+            await api.patch(url, { newState })
             toast.success(`Statut mis à jour : ${STATE_LABELS[newState]}`)
         } catch (error) {
             console.error("Error updating state", error)
             toast.error("Erreur lors de la mise à jour du statut")
-            // Recharger les candidats en cas d'erreur
-            const isAdmin = role === UserRole.ADMIN
-            const url = isAdmin ? '/candidates' : `/candidates?organizationId=${organizationId}`
+            const url = organizationId 
+                ? `/candidates?organizationId=${organizationId}`
+                : '/candidates'
             const res = await api.get(url)
-            setCandidates(res.data)
+            setCandidates(res.data || [])
         }
     }
 
@@ -154,7 +144,7 @@ export default function CandidatesPage() {
 
             {/* Filters & Search */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar max-w-full">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
                     <Button
                         variant={selectedState === "ALL" ? "default" : "ghost"}
                         size="sm"
@@ -170,13 +160,8 @@ export default function CandidatesPage() {
                             variant={selectedState === state ? "secondary" : "ghost"}
                             size="sm"
                             onClick={() => setSelectedState(state)}
-                            className={`rounded-full whitespace-nowrap ${selectedState === state
-                                ? STATE_COLORS[state].replace('bg-', 'bg-opacity-100 ').replace('text-', 'text-white ') + ' bg-gray-100' 
-                                : "text-gray-600 hover:bg-gray-50"
-                                } ${selectedState === state ? 'bg-gray-100 font-medium' : ''}`}
+                            className={`rounded-full whitespace-nowrap ${selectedState === state ? "bg-red-50 text-red-700 border border-red-200 font-medium" : "text-gray-600 hover:bg-gray-50"}`}
                         >
-                           
-                            <span className={`w-2 h-2 rounded-full mr-2 ${STATE_COLORS[state].split(' ')[1].replace('text-', 'bg-')}`} />
                             {STATE_LABELS[state]}
                         </Button>
                     ))}
@@ -226,12 +211,6 @@ export default function CandidatesPage() {
                             {/* Meta & Status */}
                             <div className="flex items-center justify-between md:justify-end gap-6 flex-1 md:flex-none w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-50">
                                 <div className="flex flex-col items-start md:items-end gap-1">
-                                    {role === UserRole.ADMIN && candidate.organization && (
-                                        <div className="flex items-center gap-1 text-xs font-medium text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-200">
-                                            <Building2 className="h-3 w-3" />
-                                            {candidate.organization.name}
-                                        </div>
-                                    )}
                                     {candidate.jobOffer ? (
                                         <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
                                             {candidate.jobOffer.title}
