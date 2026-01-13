@@ -122,8 +122,7 @@ export default function CandidatesPage() {
     const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null)
     const [history, setHistory] = useState<StateHistory[]>([])
     const [isLoadingHistory, setIsLoadingHistory] = useState(false)
-    
-    // Create/Edit dialog states
+
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [isDocumentsDialogOpen, setIsDocumentsDialogOpen] = useState(false)
@@ -184,10 +183,15 @@ export default function CandidatesPage() {
     const handleStateChange = async (candidateId: number, newState: CandidateState) => {
         if (!user) return
         
+        const candidate = candidates.find(c => c.id === candidateId)
+        if (candidate && candidate.state === newState) {
+            toast.info("Le candidat est déjà dans cet état")
+            return
+        }
+        
         try {
             setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, state: newState } : c))
 
-            const candidate = candidates.find(c => c.id === candidateId)
             const orgId = candidate?.organizationId || organizationId
             const url = orgId 
                 ? `/candidates/${candidateId}/state?organizationId=${orgId}`
@@ -199,9 +203,14 @@ export default function CandidatesPage() {
             if (selectedCandidateId === candidateId && isHistoryDialogOpen) {
                 fetchHistory(candidateId)
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Error updating state", error)
-            toast.error("Erreur lors de la mise à jour du statut")
+            const err = error as ApiErrorResponse
+            const message =
+                typeof err.response?.data?.message === "string"
+                    ? err.response.data.message
+                    : "Erreur lors de la mise à jour du statut"
+            toast.error(message)
             const url = organizationId 
                 ? `/candidates?organizationId=${organizationId}`
                 : '/candidates'
@@ -528,6 +537,7 @@ export default function CandidatesPage() {
                                                 key={state}
                                                 onClick={() => handleStateChange(candidate.id, state)}
                                                 className="gap-2"
+                                                disabled={candidate.state === state}
                                             >
                                                 <div className={`w-2 h-2 rounded-full ${STATE_COLORS[state].split(' ')[1].replace('text-', 'bg-')}`} />
                                                 {STATE_LABELS[state]}
@@ -951,6 +961,7 @@ export default function CandidatesPage() {
                     )}
                 </DialogContent>
             </Dialog>
+
         </div>
     )
 }
