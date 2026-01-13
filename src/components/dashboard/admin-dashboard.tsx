@@ -25,7 +25,9 @@ export function AdminDashboard({ user, organizationId }: AdminDashboardProps) {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const candidatesUrl = '/candidates' 
+                const candidatesUrl = organizationId 
+                    ? `/candidates?organizationId=${organizationId}`
+                    : '/candidates'
                 const notificationsUrl = organizationId 
                     ? `/notifications/count?organizationId=${organizationId}`
                     : '/notifications/count'
@@ -38,9 +40,9 @@ export function AdminDashboard({ user, organizationId }: AdminDashboardProps) {
 
                 const [candidatesRes, notificationsRes, interviewsRes, documentsRes] = await Promise.all([
                     api.get(candidatesUrl),
-                    organizationId ? api.get(notificationsUrl) : Promise.resolve({ data: { count: 0 } }),
-                    organizationId ? api.get(interviewsUrl) : Promise.resolve({ data: [] }),
-                    organizationId ? api.get(documentsUrl) : Promise.resolve({ data: [] })
+                    api.get(notificationsUrl).catch(() => ({ data: { count: 0 } })),
+                    api.get(interviewsUrl).catch(() => ({ data: [] })),
+                    api.get(documentsUrl).catch(() => ({ data: [] }))
                 ])
 
                 const today = new Date().toISOString().split('T')[0]
@@ -127,7 +129,6 @@ export function AdminDashboard({ user, organizationId }: AdminDashboardProps) {
 
             {/* Main Content Area */}
             <div className="grid gap-8 lg:grid-cols-3">
-                {/* Left Column: Recent Activity / Candidates */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="flex items-center justify-between">
                         <h3 className="text-xl font-medium tracking-tight text-gray-900">Candidatures Récentes</h3>
@@ -172,7 +173,7 @@ export function AdminDashboard({ user, organizationId }: AdminDashboardProps) {
                     </div>
                 </div>
 
-                {/* Right Column: Actions & Status */}
+                {/* Actions & Status */}
                 <div className="space-y-8">
                     {/* Quick Actions */}
                     <div className="space-y-4">
