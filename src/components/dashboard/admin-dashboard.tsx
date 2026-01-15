@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Users, FileText, Calendar, Bell, ArrowRight, TrendingUp, Clock, Plus, Upload, Settings, Building2, UserCog } from "lucide-react"
+import { Users, FileText, Calendar, Bell, ArrowRight, TrendingUp, Clock, Plus, Upload, Building2, UserCog } from "lucide-react"
 import api from "@/lib/api"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -214,12 +214,6 @@ export function AdminDashboard({ user, organizationId }: AdminDashboardProps) {
                                 icon={<Building2 className="h-5 w-5" />}
                                 label="Organisations"
                                 description="Gérer les organisations"
-                            />
-                            <QuickActionCard
-                                href="/dashboard/settings"
-                                icon={<Settings className="h-5 w-5" />}
-                                label="Paramètres"
-                                description="Configuration système"
                             />
                         </div>
                     </div>
