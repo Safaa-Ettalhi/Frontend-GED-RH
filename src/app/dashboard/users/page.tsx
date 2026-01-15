@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Plus, Trash2, UserCog, Mail, Calendar, Building2, Shield, Loader2 } from "lucide-react"
+import { Search, Plus, Trash2, UserCog, Mail, Calendar, Building2, Shield, Loader2, UserCheck, UserX } from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,6 +31,7 @@ interface User {
     name: string
     email: string
     role: UserRole
+    isActive?: boolean
     createdAt: string
     userOrganizations?: Array<{
         organizationId: number
@@ -127,6 +128,32 @@ export default function UsersPage() {
         } catch (error) {
             console.error("Error deleting user", error)
             toast.error("Erreur lors de la suppression de l'utilisateur")
+        }
+    }
+
+    const handleActivate = async (userId: number) => {
+        try {
+            await api.put(`/users/${userId}/activate`)
+            toast.success("Utilisateur activé avec succès")
+            fetchUsers()
+        } catch (error) {
+            console.error("Error activating user", error)
+            toast.error("Erreur lors de l'activation de l'utilisateur")
+        }
+    }
+
+    const handleDeactivate = async (userId: number) => {
+        if (!confirm("Êtes-vous sûr de vouloir désactiver cet utilisateur ? Il ne pourra plus se connecter.")) {
+            return
+        }
+
+        try {
+            await api.put(`/users/${userId}/deactivate`)
+            toast.success("Utilisateur désactivé avec succès")
+            fetchUsers()
+        } catch (error) {
+            console.error("Error deactivating user", error)
+            toast.error("Erreur lors de la désactivation de l'utilisateur")
         }
     }
 
@@ -229,6 +256,11 @@ export default function UsersPage() {
                                                     Vous
                                                 </span>
                                             )}
+                                            {user.isActive === false && (
+                                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                                                    Désactivé
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
                                             <div className="flex items-center gap-1">
@@ -280,14 +312,38 @@ export default function UsersPage() {
                                     </DropdownMenu>
 
                                     {user.id !== currentUser?.id && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-gray-400 hover:text-red-600"
-                                            onClick={() => handleDelete(user.id)}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        <>
+                                            {user.isActive === false ? (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-gray-400 hover:text-emerald-600"
+                                                    onClick={() => handleActivate(user.id)}
+                                                    title="Activer l'utilisateur"
+                                                >
+                                                    <UserCheck className="h-4 w-4" />
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-gray-400 hover:text-amber-600"
+                                                    onClick={() => handleDeactivate(user.id)}
+                                                    title="Désactiver l'utilisateur"
+                                                >
+                                                    <UserX className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-gray-400 hover:text-red-600"
+                                                onClick={() => handleDelete(user.id)}
+                                                title="Supprimer l'utilisateur"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </>
                                     )}
                                 </div>
                             </div>
