@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Building2, Edit, Save, X, Loader2, Users, FileText, UserCheck, Calendar, Settings } from "lucide-react"
+import { Building2, Edit, Save, X, Loader2, Users, FileText, UserCheck, Calendar } from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
