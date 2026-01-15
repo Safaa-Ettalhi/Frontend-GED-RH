@@ -127,6 +127,7 @@ export default function CalendarPage() {
         startTime: "",
         duration: 60,
         type: InterviewType.TECHNIQUE,
+        status: InterviewStatus.PLANNED,
         location: "",
         meetingLink: "",
         participantIds: [] as number[],
@@ -151,13 +152,9 @@ export default function CalendarPage() {
             // Si l'API n'est pas activée, afficher un avertissement
             if (res.data?.error && res.data.error.includes("API Google Calendar n'est pas activée")) {
                 toast.warning(
-                    "L'API Google Calendar n'est pas activée. Allez dans les Paramètres pour activer l'API.",
+                    "L'API Google Calendar n'est pas activée. Activez l'API dans Google Cloud Console.",
                     {
                         duration: 6000,
-                        action: {
-                            label: "Paramètres",
-                            onClick: () => window.location.href = "/dashboard/settings"
-                        }
                     }
                 )
             }
@@ -231,6 +228,7 @@ export default function CalendarPage() {
             startTime: "",
             duration: 60,
             type: InterviewType.TECHNIQUE,
+            status: InterviewStatus.PLANNED,
             location: "",
             meetingLink: "",
             participantIds: [],
@@ -241,6 +239,18 @@ export default function CalendarPage() {
     }
 
     const handleEdit = (interview: Interview) => {
+        // Vérifier si la date de l'entretien est dans le passé
+        const interviewDateTime = new Date(`${interview.date}T${interview.startTime}`)
+        const isPast = interviewDateTime < new Date()
+        
+        // Si la date est passée et que le statut n'est pas déjà COMPLETED ou CANCELLED,
+        // suggérer automatiquement COMPLETED
+        const suggestedStatus = isPast && 
+            interview.status !== InterviewStatus.COMPLETED && 
+            interview.status !== InterviewStatus.CANCELLED
+            ? InterviewStatus.COMPLETED
+            : interview.status
+
         setFormData({
             candidateId: interview.candidateId.toString(),
             title: interview.title,
@@ -249,6 +259,7 @@ export default function CalendarPage() {
             startTime: interview.startTime,
             duration: interview.duration,
             type: interview.type,
+            status: suggestedStatus,
             location: interview.location || "",
             meetingLink: interview.meetingLink || "",
             participantIds: interview.participantIds 
@@ -258,6 +269,13 @@ export default function CalendarPage() {
         })
         setSelectedInterview(interview)
         setIsEditDialogOpen(true)
+        
+        // Afficher un message informatif si le statut a été automatiquement changé
+        if (isPast && suggestedStatus === InterviewStatus.COMPLETED && interview.status !== InterviewStatus.COMPLETED) {
+            toast.info("L'entretien est dans le passé, le statut a été automatiquement mis à 'Terminé'", {
+                duration: 4000,
+            })
+        }
     }
 
     const handleSubmit = async () => {
@@ -276,14 +294,24 @@ export default function CalendarPage() {
 
         setIsSubmitting(true)
         try {
+            // Si on modifie un entretien existant et qu'on change seulement le statut,
+            // ne pas envoyer la date/heure pour éviter la validation "date dans le passé"
+            const isOnlyStatusChange = selectedInterview && 
+                formData.date === selectedInterview.date && 
+                formData.startTime === selectedInterview.startTime
+
             const payload = {
                 candidateId: parseInt(formData.candidateId),
                 title: formData.title.trim(),
                 description: formData.description.trim() || undefined,
-                date: formData.date,
-                startTime: formData.startTime,
+                // Ne pas envoyer date/startTime si on change seulement le statut
+                ...(isOnlyStatusChange ? {} : {
+                    date: formData.date,
+                    startTime: formData.startTime,
+                }),
                 duration: formData.duration,
                 type: formData.type,
+                status: formData.status,
                 location: formData.location.trim() || undefined,
                 meetingLink: formData.meetingLink.trim() || undefined,
                 participantIds: formData.participantIds.length > 0 
@@ -310,6 +338,7 @@ export default function CalendarPage() {
                 startTime: "",
                 duration: 60,
                 type: InterviewType.TECHNIQUE,
+                status: InterviewStatus.PLANNED,
                 location: "",
                 meetingLink: "",
                 participantIds: [],
@@ -405,13 +434,9 @@ export default function CalendarPage() {
                 errorMessage.includes("api not enabled")
             ) {
                 toast.error(
-                    "Google Calendar n'est pas configuré correctement. L'API Google Calendar doit être activée dans Google Cloud Console. Allez dans les Paramètres pour plus d'informations.",
+                    "Google Calendar n'est pas configuré correctement. L'API Google Calendar doit être activée dans Google Cloud Console.",
                     { 
                         duration: 8000,
-                        action: {
-                            label: "Paramètres",
-                            onClick: () => window.location.href = "/dashboard/settings"
-                        }
                     }
                 )
                 // Re-vérifier la configuration
@@ -763,6 +788,7 @@ export default function CalendarPage() {
                         startTime: "",
                         duration: 60,
                         type: InterviewType.TECHNIQUE,
+                        status: InterviewStatus.PLANNED,
                         location: "",
                         meetingLink: "",
                         participantIds: [],
@@ -876,6 +902,35 @@ export default function CalendarPage() {
                             </div>
                         </div>
 
+                        {selectedInterview && (
+                            <div className="space-y-2">
+                                <Label htmlFor="status" className="text-sm font-medium text-gray-700">Statut</Label>
+                                <Select
+                                    id="status"
+                                    value={formData.status}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as InterviewStatus }))}
+                                    options={Object.values(InterviewStatus).map((status) => ({
+                                        value: status,
+                                        label: INTERVIEW_STATUS_LABELS[status]
+                                    }))}
+                                    title="Statut de l'entretien"
+                                    aria-label="Statut de l'entretien"
+                                />
+                                {(() => {
+                                    const interviewDateTime = new Date(`${selectedInterview.date}T${selectedInterview.startTime}`)
+                                    const isPast = interviewDateTime < new Date()
+                                    if (isPast && formData.status !== InterviewStatus.COMPLETED && formData.status !== InterviewStatus.CANCELLED) {
+                                        return (
+                                            <p className="text-xs text-amber-600 font-medium">
+                                                ⚠️ L&apos;entretien est dans le passé. Le statut sera automatiquement mis à &quot;Terminé&quot; si vous ne le changez pas.
+                                            </p>
+                                        )
+                                    }
+                                    return <p className="text-xs text-gray-500">Modifiez le statut de l&apos;entretien</p>
+                                })()}
+                            </div>
+                        )}
+
                         <div className="space-y-2">
                             <Label htmlFor="location" className="text-sm font-medium text-gray-700">Lieu</Label>
                             <Input
@@ -962,6 +1017,7 @@ export default function CalendarPage() {
                                     startTime: "",
                                     duration: 60,
                                     type: InterviewType.TECHNIQUE,
+                                    status: InterviewStatus.PLANNED,
                                     location: "",
                                     meetingLink: "",
                                     participantIds: [],
