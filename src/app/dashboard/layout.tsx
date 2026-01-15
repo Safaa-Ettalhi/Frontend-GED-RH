@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { FileText, Users, Calendar, LayoutDashboard, Menu, X, Settings, Building2, Briefcase, UserCog, Bell } from "lucide-react"
+import { FileText, Users, Calendar, LayoutDashboard, Menu, X, Building2, Briefcase, UserCog, Bell } from "lucide-react"
 import { LogoutButton } from "@/components/auth/logout-button"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -48,7 +48,6 @@ function DashboardLayoutContent({
     const adminNavItems = [
         { href: "/dashboard/users", icon: UserCog, label: "Utilisateurs", roles: [UserRole.ADMIN] },
         { href: "/dashboard/organizations", icon: Building2, label: "Organisations", roles: [UserRole.ADMIN] },
-        { href: "/dashboard/settings", icon: Settings, label: "Paramètres", roles: [UserRole.ADMIN] },
     ]
 
     const candidateNavItems = [
