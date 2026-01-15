@@ -2,21 +2,23 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { FileText, Users, Calendar, LayoutDashboard, Menu, X, Settings, Building2, Briefcase, UserCog } from "lucide-react"
+import { FileText, Users, Calendar, LayoutDashboard, Menu, X, Settings, Building2, Briefcase, UserCog, Bell } from "lucide-react"
 import { LogoutButton } from "@/components/auth/logout-button"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Logo } from "@/components/logo"
 import { useRole } from "@/hooks/useRole"
 import { UserRole, ROLE_LABELS } from "@/lib/roles"
+import { NotificationsProvider, useNotificationsContext } from "@/contexts/NotificationsContext"
 
-export default function DashboardLayout({
+function DashboardLayoutContent({
     children,
 }: {
     children: React.ReactNode
 }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const { user, role, permissions } = useRole()
+    const { unreadCount } = useNotificationsContext()
     const pathname = usePathname()
 
     const getInitials = (name: string) => {
@@ -30,6 +32,7 @@ export default function DashboardLayout({
 
     const baseNavItems = [
         { href: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord", roles: [UserRole.ADMIN, UserRole.RH, UserRole.MANAGER, UserRole.CANDIDATE] },
+        { href: "/dashboard/notifications", icon: Bell, label: "Notifications", roles: [UserRole.ADMIN, UserRole.RH, UserRole.MANAGER, UserRole.CANDIDATE] },
     ]
 
     const hrNavItems = [
@@ -69,17 +72,27 @@ export default function DashboardLayout({
                             <nav className="space-y-1">
                                 {navItems.map((item) => {
                                     const isActive = pathname === item.href
+                                    const showBadge = item.href === "/dashboard/notifications" && unreadCount > 0
                                     return (
                                         <Link
                                             key={item.href}
-                                            className={`flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 group ${isActive
+                                            className={`flex items-center justify-between gap-3 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 group relative ${isActive
                                                 ? "bg-red-600 text-white shadow-md shadow-red-200"
                                                 : "text-muted-foreground hover:text-red-600 hover:bg-red-50"
                                                 }`}
                                             href={item.href}
                                         >
-                                            <item.icon className={`h-4 w-4 ${isActive ? "text-white" : "text-gray-400 group-hover:text-red-600"}`} />
-                                            {item.label}
+                                            <div className="flex items-center gap-3">
+                                                <item.icon className={`h-4 w-4 ${isActive ? "text-white" : "text-gray-400 group-hover:text-red-600"}`} />
+                                                {item.label}
+                                            </div>
+                                            {showBadge && (
+                                                <span className={`h-5 min-w-5 px-1.5 flex items-center justify-center text-xs font-bold rounded-full ${
+                                                    isActive ? "bg-white text-red-600" : "bg-red-600 text-white"
+                                                }`}>
+                                                    {unreadCount > 99 ? "99+" : unreadCount}
+                                                </span>
+                                            )}
                                         </Link>
                                     )
                                 })}
@@ -192,5 +205,19 @@ export default function DashboardLayout({
                 </main>
             </div>
         </div>
+    )
+}
+
+export default function DashboardLayout({
+    children,
+}: {
+    children: React.ReactNode
+}) {
+    const { organizationId } = useRole()
+    
+    return (
+        <NotificationsProvider organizationId={organizationId}>
+            <DashboardLayoutContent>{children}</DashboardLayoutContent>
+        </NotificationsProvider>
     )
 }
