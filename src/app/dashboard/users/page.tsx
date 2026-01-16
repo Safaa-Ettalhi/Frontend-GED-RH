@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { useRole } from "@/hooks/useRole"
 import { UserRole, ROLE_LABELS } from "@/lib/roles"
+import { RoleGuard } from "@/components/auth/role-guard"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -178,6 +179,17 @@ export default function UsersPage() {
         return (
             <div className="flex h-[50vh] items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-red-600" />
+            </div>
+        )
+    }
+
+    if (role !== UserRole.ADMIN) {
+        return (
+            <div className="flex h-[50vh] items-center justify-center">
+                <div className="text-center">
+                    <p className="text-gray-500">Accès refusé</p>
+                    <p className="text-sm text-gray-400 mt-2">Seuls les administrateurs peuvent accéder à cette page</p>
+                </div>
             </div>
         )
     }
