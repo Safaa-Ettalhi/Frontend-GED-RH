@@ -39,6 +39,7 @@ function DashboardLayoutContent({
         { href: "/dashboard/candidates", icon: Users, label: "Candidats", roles: [UserRole.ADMIN, UserRole.RH, UserRole.MANAGER] },
         { href: "/dashboard/documents", icon: FileText, label: "Documents", roles: [UserRole.ADMIN, UserRole.RH, UserRole.MANAGER] },
         { href: "/dashboard/calendar", icon: Calendar, label: "Entretiens", roles: [UserRole.ADMIN, UserRole.RH, UserRole.MANAGER] },
+        { href: "/dashboard/job-offers", icon: Briefcase, label: "Offres d'emploi", roles: [UserRole.ADMIN, UserRole.RH] },
     ]
 
     const formsNavItems = [
@@ -46,13 +47,15 @@ function DashboardLayoutContent({
     ]
 
     const adminNavItems = [
-        { href: "/dashboard/users", icon: UserCog, label: "Utilisateurs", roles: [UserRole.ADMIN] },
+        { href: "/dashboard/users", icon: UserCog, label: "Utilisateurs", roles: [UserRole.ADMIN, UserRole.RH] },
         { href: "/dashboard/organizations", icon: Building2, label: "Organisations", roles: [UserRole.ADMIN] },
     ]
 
     const candidateNavItems = [
-        { href: "/offres", icon: Briefcase, label: "Offres d'emploi", roles: [UserRole.CANDIDATE] },
+        { href: "/dashboard/offres", icon: Briefcase, label: "Offres d'emploi", roles: [UserRole.CANDIDATE] },
         { href: "/dashboard/applications", icon: FileText, label: "Mes candidatures", roles: [UserRole.CANDIDATE] },
+        { href: "/dashboard/my-interviews", icon: Calendar, label: "Mes entretiens", roles: [UserRole.CANDIDATE] },
+        { href: "/dashboard/my-documents", icon: FileText, label: "Mes documents", roles: [UserRole.CANDIDATE] },
     ]
 
     const allNavItems = [...baseNavItems, ...hrNavItems, ...formsNavItems, ...adminNavItems, ...candidateNavItems]
