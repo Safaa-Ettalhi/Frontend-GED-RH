@@ -57,7 +57,7 @@ export default function UsersPage() {
         name: "",
         email: "",
         password: "",
-        role: UserRole.CANDIDATE,
+        role: UserRole.MANAGER,
     })
 
     useEffect(() => {
@@ -94,7 +94,7 @@ export default function UsersPage() {
             await api.post("/users", formData)
             toast.success("Utilisateur créé avec succès et associé à votre organisation")
             setIsCreateDialogOpen(false)
-            setFormData({ name: "", email: "", password: "", role: UserRole.CANDIDATE })
+            setFormData({ name: "", email: "", password: "", role: UserRole.MANAGER })
             const res = await api.get("/users")
             setUsers(res.data || [])
         } catch (error: unknown) {
@@ -168,12 +168,18 @@ export default function UsersPage() {
         return matchesSearch && matchesRole
     })
 
-    const roleOptions = [
-        { value: UserRole.ADMIN, label: ROLE_LABELS[UserRole.ADMIN] },
-        { value: UserRole.RH, label: ROLE_LABELS[UserRole.RH] },
-        { value: UserRole.MANAGER, label: ROLE_LABELS[UserRole.MANAGER] },
-        { value: UserRole.CANDIDATE, label: ROLE_LABELS[UserRole.CANDIDATE] },
-    ]
+    // Les options de rôle dépendent du rôle de l'utilisateur connecté
+    const roleOptions = role === UserRole.ADMIN
+        ? [
+            { value: UserRole.ADMIN, label: ROLE_LABELS[UserRole.ADMIN] },
+            { value: UserRole.RH, label: ROLE_LABELS[UserRole.RH] },
+            { value: UserRole.MANAGER, label: ROLE_LABELS[UserRole.MANAGER] },
+            { value: UserRole.CANDIDATE, label: ROLE_LABELS[UserRole.CANDIDATE] },
+        ]
+        : [
+            // RH ne peut créer que des MANAGER
+            { value: UserRole.MANAGER, label: ROLE_LABELS[UserRole.MANAGER] },
+        ]
 
     if (isLoading) {
         return (
@@ -183,12 +189,12 @@ export default function UsersPage() {
         )
     }
 
-    if (role !== UserRole.ADMIN) {
+    if (role !== UserRole.ADMIN && role !== UserRole.RH) {
         return (
             <div className="flex h-[50vh] items-center justify-center">
                 <div className="text-center">
                     <p className="text-gray-500">Accès refusé</p>
-                    <p className="text-sm text-gray-400 mt-2">Seuls les administrateurs peuvent accéder à cette page</p>
+                    <p className="text-sm text-gray-400 mt-2">Seuls les administrateurs et les RH peuvent accéder à cette page</p>
                 </div>
             </div>
         )
@@ -299,29 +305,36 @@ export default function UsersPage() {
 
                                 {/* Actions */}
                                 <div className="flex items-center gap-2">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" className="h-8 rounded-full px-3 text-xs font-medium border border-gray-200 hover:border-red-300 hover:bg-red-50">
-                                                <Shield className="h-3.5 w-3.5 mr-1.5" />
-                                                {ROLE_LABELS[user.role]}
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Changer le rôle</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            {roleOptions.map((option) => (
-                                                <DropdownMenuItem
-                                                    key={option.value}
-                                                    onClick={() => handleChangeRole(user.id, option.value)}
-                                                    className="gap-2"
-                                                    disabled={user.role === option.value}
-                                                >
-                                                    <Shield className="h-4 w-4" />
-                                                    {option.label}
-                                                </DropdownMenuItem>
-                                            ))}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    {role === UserRole.ADMIN ? (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" className="h-8 rounded-full px-3 text-xs font-medium border border-gray-200 hover:border-red-300 hover:bg-red-50">
+                                                    <Shield className="h-3.5 w-3.5 mr-1.5" />
+                                                    {ROLE_LABELS[user.role]}
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Changer le rôle</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                {roleOptions.map((option) => (
+                                                    <DropdownMenuItem
+                                                        key={option.value}
+                                                        onClick={() => handleChangeRole(user.id, option.value)}
+                                                        className="gap-2"
+                                                        disabled={user.role === option.value}
+                                                    >
+                                                        <Shield className="h-4 w-4" />
+                                                        {option.label}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    ) : (
+                                        <Button variant="ghost" className="h-8 rounded-full px-3 text-xs font-medium border border-gray-200 bg-gray-50 cursor-default">
+                                            <Shield className="h-3.5 w-3.5 mr-1.5" />
+                                            {ROLE_LABELS[user.role]}
+                                        </Button>
+                                    )}
 
                                     {user.id !== currentUser?.id && (
                                         <>
@@ -375,7 +388,7 @@ export default function UsersPage() {
             {/* Create Dialog */}
             <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
                 if (!open && !isSubmitting) {
-                    setFormData({ name: "", email: "", password: "", role: UserRole.CANDIDATE })
+                    setFormData({ name: "", email: "", password: "", role: UserRole.MANAGER })
                 }
                 setIsCreateDialogOpen(open)
             }}>
