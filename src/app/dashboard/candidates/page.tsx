@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Plus, Filter, Mail, Phone, Calendar, ArrowRight, Loader2, XCircle, History, Clock, User, Trash2, Edit, FileText, Download, X} from "lucide-react"
+import { Search, Plus, Filter, Mail, Phone, Calendar, ArrowRight, Loader2, XCircle, History, Clock, User, Trash2, Edit, FileText, Download, X, MessageSquare, CheckCircle, XCircle as XCircleIcon, RotateCcw} from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -114,6 +114,40 @@ interface Document {
     createdAt: string
 }
 
+enum EvaluationRecommendation {
+    ACCEPT = 'accept',
+    REJECT = 'reject',
+    SECOND_INTERVIEW = 'second_interview',
+}
+
+const RECOMMENDATION_LABELS: Record<EvaluationRecommendation, string> = {
+    [EvaluationRecommendation.ACCEPT]: 'Acceptation',
+    [EvaluationRecommendation.REJECT]: 'Refus',
+    [EvaluationRecommendation.SECOND_INTERVIEW]: 'Deuxième entretien',
+}
+
+interface ManagerEvaluation {
+    id: number
+    candidateId: number
+    interviewId?: number | null
+    managerId: number
+    organizationId: number
+    recommendation: EvaluationRecommendation
+    comment: string | null
+    createdAt: string
+    manager?: { id: number; name: string; email: string }
+    interview?: { id: number; title: string; date: string }
+}
+
+interface Interview {
+    id: number
+    title: string
+    date: string
+    startTime: string
+    candidateId: number
+    participantIds?: number[]
+}
+
 export default function CandidatesPage() {
     const { user, role, organizationId } = useRole()
     const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -122,6 +156,7 @@ export default function CandidatesPage() {
     const [selectedState, setSelectedState] = useState<string>("ALL")
     const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false)
     const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null)
+    const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
     const [history, setHistory] = useState<StateHistory[]>([])
     const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
@@ -137,6 +172,11 @@ export default function CandidatesPage() {
     const [isLoadingAllDocuments, setIsLoadingAllDocuments] = useState(false)
     const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
     const [managers, setManagers] = useState<Array<{ id: number; name: string; email: string }>>([])
+    const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false)
+    const [evaluations, setEvaluations] = useState<ManagerEvaluation[]>([])
+    const [isLoadingEvaluations, setIsLoadingEvaluations] = useState(false)
+    const [interviews, setInterviews] = useState<Interview[]>([])
+    const [isLoadingInterviews, setIsLoadingInterviews] = useState(false)
     
     const [formData, setFormData] = useState({
         firstName: "",
@@ -147,6 +187,13 @@ export default function CandidatesPage() {
         formId: "",
         managerId: "",
         notes: ""
+    })
+
+    const [evaluationData, setEvaluationData] = useState({
+        candidateId: 0,
+        interviewId: "",
+        recommendation: "" as EvaluationRecommendation | "",
+        comment: ""
     })
 
     useEffect(() => {
@@ -194,14 +241,25 @@ export default function CandidatesPage() {
             try {
                 const res = await api.get(`/users/role/manager`).catch(() => ({ data: [] }))
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const orgManagers = (res.data || []).filter((user: any) => 
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    user.userOrganizations?.some((uo: any) => uo.organizationId === organizationId)
-                )
+                const allManagers = res.data || []
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                setManagers(orgManagers.map((u: any) => ({ id: u.id, name: u.name, email: u.email })))
+                const orgManagers = allManagers.filter((user: any) => {
+                    // Vérifier si l'utilisateur appartient à l'organisation
+                    if (!user.userOrganizations || user.userOrganizations.length === 0) {
+                        return false
+                    }
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    return user.userOrganizations.some((uo: any) => uo.organizationId === organizationId)
+                })
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const managersList = orgManagers.map((u: any) => ({ id: u.id, name: u.name, email: u.email }))
+                setManagers(managersList)
+                if (managersList.length === 0 && allManagers.length > 0) {
+                    console.warn(`Aucun manager trouvé pour l'organisation ${organizationId}. Total managers: ${allManagers.length}`)
+                }
             } catch (error) {
                 console.error("Error fetching managers", error)
+                setManagers([])
             }
         }
         fetchManagers()
@@ -316,6 +374,7 @@ export default function CandidatesPage() {
 
     const handleEdit = (candidate: Candidate) => {
         setSelectedCandidateId(candidate.id)
+        setSelectedCandidate(candidate) // Stocker le candidat complet pour vérifier s'il a postulé
         setFormData({
             firstName: candidate.firstName,
             lastName: candidate.lastName,
@@ -330,29 +389,55 @@ export default function CandidatesPage() {
     }
 
     const handleUpdate = async () => {
-        if (!organizationId || !selectedCandidateId || !formData.firstName || !formData.lastName || !formData.email) {
-            toast.error("Veuillez remplir tous les champs obligatoires")
+        if (!organizationId || !selectedCandidateId) {
+            toast.error("Erreur : candidat non sélectionné")
             return
+        }
+
+        // Si le candidat a postulé à une offre, on ne peut modifier que managerId et notes
+        const hasJobOffer = selectedCandidate?.jobOffer?.id !== undefined
+        
+        if (hasJobOffer) {
+            // Pour les candidats qui ont postulé, validation minimale
+            if (formData.managerId === "" && !formData.notes) {
+                // Pas d'erreur si rien n'est modifié, mais on peut quand même sauvegarder
+            }
+        } else {
+            // Pour les candidats créés manuellement, validation complète
+            if (!formData.firstName || !formData.lastName || !formData.email) {
+                toast.error("Veuillez remplir tous les champs obligatoires")
+                return
+            }
         }
 
         setIsSubmitting(true)
         try {
-            const payload: Record<string, unknown> = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                email: formData.email,
-            }
+            const payload: Record<string, unknown> = {}
             
-            if (formData.phone) payload.phone = formData.phone
-            if (formData.jobOfferId) payload.jobOfferId = parseInt(formData.jobOfferId)
-            if (formData.managerId) payload.managerId = parseInt(formData.managerId)
-            else if (formData.managerId === "") payload.managerId = null
-            if (formData.notes) payload.notes = formData.notes
+            if (hasJobOffer) {
+                // Candidat qui a postulé : seulement managerId et notes
+                if (formData.managerId !== undefined) {
+                    if (formData.managerId) payload.managerId = parseInt(formData.managerId)
+                    else payload.managerId = null
+                }
+                if (formData.notes !== undefined) payload.notes = formData.notes
+            } else {
+                // Candidat créé manuellement : toutes les informations
+                payload.firstName = formData.firstName
+                payload.lastName = formData.lastName
+                payload.email = formData.email
+                if (formData.phone) payload.phone = formData.phone
+                if (formData.jobOfferId) payload.jobOfferId = parseInt(formData.jobOfferId)
+                if (formData.managerId) payload.managerId = parseInt(formData.managerId)
+                else if (formData.managerId === "") payload.managerId = null
+                if (formData.notes) payload.notes = formData.notes
+            }
 
             await api.patch(`/candidates/${selectedCandidateId}?organizationId=${organizationId}`, payload)
             toast.success("Candidat modifié avec succès")
             setIsEditDialogOpen(false)
             setSelectedCandidateId(null)
+            setSelectedCandidate(null)
             setFormData({ firstName: "", lastName: "", email: "", phone: "", jobOfferId: "", formId: "", managerId: "", notes: "" })
 
             const res = await api.get(`/candidates?organizationId=${organizationId}`)
@@ -493,6 +578,86 @@ export default function CandidatesPage() {
         }
     }
 
+    const handleOpenEvaluation = async (candidateId: number) => {
+        if (!organizationId) return
+        
+        setSelectedCandidateId(candidateId)
+        setIsEvaluationDialogOpen(true)
+        setIsLoadingInterviews(true)
+        setIsLoadingEvaluations(true)
+        
+        setEvaluationData({
+            candidateId,
+            interviewId: "",
+            recommendation: "",
+            comment: ""
+        })
+        
+        try {
+            const interviewsRes = await api.get(`/interviews/candidates/${candidateId}?organizationId=${organizationId}`)
+            const allInterviews = interviewsRes.data || []
+            const userInterviews = allInterviews.filter((interview: Interview) => 
+                interview.participantIds && interview.participantIds.includes(user?.id || 0)
+            )
+            setInterviews(userInterviews)
+            
+            const evaluationsRes = await api.get(`/candidates/${candidateId}/evaluations?organizationId=${organizationId}`)
+            setEvaluations(evaluationsRes.data || [])
+        } catch (error) {
+            console.error("Error fetching interviews/evaluations", error)
+            toast.error("Erreur lors du chargement des données")
+            setInterviews([])
+            setEvaluations([])
+        } finally {
+            setIsLoadingInterviews(false)
+            setIsLoadingEvaluations(false)
+        }
+    }
+
+    const handleSubmitEvaluation = async () => {
+        if (!organizationId || !evaluationData.candidateId || !evaluationData.recommendation) {
+            toast.error("Veuillez remplir tous les champs obligatoires")
+            return
+        }
+        
+        setIsSubmitting(true)
+        
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const payload: any = {
+                candidateId: evaluationData.candidateId,
+                recommendation: evaluationData.recommendation,
+            }
+            
+            if (evaluationData.interviewId) {
+                payload.interviewId = parseInt(evaluationData.interviewId, 10)
+            }
+            
+            if (evaluationData.comment) {
+                payload.comment = evaluationData.comment
+            }
+            
+            await api.post(`/candidates/evaluations?organizationId=${organizationId}`, payload)
+            toast.success("Avis enregistré avec succès")
+            setIsEvaluationDialogOpen(false)
+            
+            if (selectedCandidateId) {
+                const evaluationsRes = await api.get(`/candidates/${selectedCandidateId}/evaluations?organizationId=${organizationId}`)
+                setEvaluations(evaluationsRes.data || [])
+            }
+        } catch (error: unknown) {
+            console.error("Error submitting evaluation", error)
+            const err = error as ApiErrorResponse
+            const message =
+                typeof err.response?.data?.message === "string"
+                    ? err.response.data.message
+                    : "Erreur lors de l'enregistrement de l'avis"
+            toast.error(message)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
     const filteredCandidates = candidates.filter(candidate => {
         const matchesSearch =
             candidate.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -520,13 +685,15 @@ export default function CandidatesPage() {
                     <h1 className="text-2xl font-bold tracking-tight text-gray-900">Candidathèque</h1>
                     <p className="text-muted-foreground">Gérez vos viviers de talents et suivez les recrutements.</p>
                 </div>
-                <Button 
-                    className="bg-red-600 hover:bg-red-700 text-white gap-2 shadow-lg shadow-red-600/20"
-                    onClick={() => setIsCreateDialogOpen(true)}
-                >
-                    <Plus className="h-4 w-4" />
-                    Ajouter un candidat
-                </Button>
+                {(role === UserRole.ADMIN || role === UserRole.RH) && (
+                    <Button 
+                        className="bg-red-600 hover:bg-red-700 text-white gap-2 shadow-lg shadow-red-600/20"
+                        onClick={() => setIsCreateDialogOpen(true)}
+                    >
+                        <Plus className="h-4 w-4" />
+                        Ajouter un candidat
+                    </Button>
+                )}
             </div>
 
             {/* Filters & Search */}
@@ -617,7 +784,7 @@ export default function CandidatesPage() {
                                     )}
                                 </div>
 
-                                {(role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER) && (
+                                {(role === UserRole.ADMIN || role === UserRole.RH) && (
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" className={`h-8 rounded-full px-3 text-xs font-medium border ${STATE_COLORS[candidate.state]}`}>
@@ -641,7 +808,7 @@ export default function CandidatesPage() {
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 )}
-                                {!(role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER) && (
+                                {!(role === UserRole.ADMIN || role === UserRole.RH) && (
                                     <Button variant="ghost" className={`h-8 rounded-full px-3 text-xs font-medium border ${STATE_COLORS[candidate.state]}`} disabled>
                                         {STATE_LABELS[candidate.state]}
                                     </Button>
@@ -666,7 +833,7 @@ export default function CandidatesPage() {
                                     >
                                         <FileText className="h-4 w-4" />
                                     </Button>
-                                    {(role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER) && (
+                                    {(role === UserRole.ADMIN || role === UserRole.RH) && (
                                         <Button 
                                             variant="ghost" 
                                             size="icon" 
@@ -677,15 +844,26 @@ export default function CandidatesPage() {
                                             <Edit className="h-4 w-4" />
                                         </Button>
                                     )}
-                                    {(role === UserRole.ADMIN || role === UserRole.MANAGER) && (
+                                    {role === UserRole.ADMIN && (
                                         <Button 
                                             variant="ghost" 
                                             size="icon" 
                                             className="h-8 w-8 text-gray-400 hover:text-red-600"
                                             onClick={() => handleDelete(candidate.id)}
-                                            title="Supprimer le candidat (réservé à Admin RH et Manager)"
+                                            title="Supprimer le candidat (réservé à Admin RH)"
                                         >
                                             <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    {role === UserRole.MANAGER && (
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 text-gray-400 hover:text-blue-600"
+                                            onClick={() => handleOpenEvaluation(candidate.id)}
+                                            title="Donner mon avis"
+                                        >
+                                            <User className="h-4 w-4" />
                                         </Button>
                                     )}
                                 </div>
@@ -862,15 +1040,21 @@ export default function CandidatesPage() {
                         {(role === UserRole.ADMIN || role === UserRole.RH) && (
                             <div className="space-y-2">
                                 <Label htmlFor="create-manager">Manager assigné</Label>
-                                <Select
-                                    id="create-manager"
-                                    options={[
-                                        { value: "", label: "Aucun manager" },
-                                        ...managers.map(m => ({ value: m.id.toString(), label: `${m.name} (${m.email})` }))
-                                    ]}
-                                    value={formData.managerId}
-                                    onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
-                                />
+                                {managers.length === 0 ? (
+                                    <div className="px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+                                        Aucun manager disponible dans cette organisation
+                                    </div>
+                                ) : (
+                                    <Select
+                                        id="create-manager"
+                                        options={[
+                                            { value: "", label: "Aucun manager" },
+                                            ...managers.map(m => ({ value: m.id.toString(), label: `${m.name} (${m.email})` }))
+                                        ]}
+                                        value={formData.managerId}
+                                        onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
+                                    />
+                                )}
                             </div>
                         )}
                         <div className="space-y-2">
@@ -911,6 +1095,7 @@ export default function CandidatesPage() {
                 if (!open && !isSubmitting) {
                     setFormData({ firstName: "", lastName: "", email: "", phone: "", jobOfferId: "", formId: "", managerId: "", notes: "" })
                     setSelectedCandidateId(null)
+                    setSelectedCandidate(null)
                 }
                 setIsEditDialogOpen(open)
             }}>
@@ -918,10 +1103,18 @@ export default function CandidatesPage() {
                     <DialogHeader>
                         <DialogTitle>Modifier le candidat</DialogTitle>
                         <DialogDescription>
-                            Modifiez les informations du candidat.
+                            {selectedCandidate?.jobOffer?.id 
+                                ? "Ce candidat a postulé à une offre. Vous ne pouvez modifier que le manager et les notes."
+                                : "Modifiez les informations du candidat."}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
+                        {selectedCandidate?.jobOffer?.id && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                                <p className="font-medium mb-1">⚠️ Candidat ayant postulé à une offre</p>
+                                <p>Les informations personnelles ne peuvent pas être modifiées. Vous pouvez uniquement modifier le manager et ajouter des notes.</p>
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label htmlFor="edit-firstName">Prénom *</Label>
                             <Input
@@ -929,6 +1122,8 @@ export default function CandidatesPage() {
                                 placeholder="Jean"
                                 value={formData.firstName}
                                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                disabled={!!selectedCandidate?.jobOffer?.id}
+                                className={selectedCandidate?.jobOffer?.id ? "bg-gray-50 cursor-not-allowed" : ""}
                             />
                         </div>
                         <div className="space-y-2">
@@ -938,6 +1133,8 @@ export default function CandidatesPage() {
                                 placeholder="Dupont"
                                 value={formData.lastName}
                                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                disabled={!!selectedCandidate?.jobOffer?.id}
+                                className={selectedCandidate?.jobOffer?.id ? "bg-gray-50 cursor-not-allowed" : ""}
                             />
                         </div>
                         <div className="space-y-2">
@@ -948,6 +1145,8 @@ export default function CandidatesPage() {
                                 placeholder="jean.dupont@example.com"
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                disabled={!!selectedCandidate?.jobOffer?.id}
+                                className={selectedCandidate?.jobOffer?.id ? "bg-gray-50 cursor-not-allowed" : ""}
                             />
                         </div>
                         <div className="space-y-2">
@@ -957,40 +1156,66 @@ export default function CandidatesPage() {
                                 placeholder="+33 6 12 34 56 78"
                                 value={formData.phone}
                                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                disabled={!!selectedCandidate?.jobOffer?.id}
+                                className={selectedCandidate?.jobOffer?.id ? "bg-gray-50 cursor-not-allowed" : ""}
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-jobOffer">Offre d&apos;emploi</Label>
-                            <Select
-                                id="edit-jobOffer"
-                                options={[
-                                    { value: "", label: "Aucune" },
-                                    ...jobOffers.map(jo => ({ value: jo.id.toString(), label: jo.title }))
-                                ]}
-                                value={formData.jobOfferId}
-                                onChange={(e) => setFormData({ ...formData, jobOfferId: e.target.value })}
-                            />
-                        </div>
-                        {(role === UserRole.ADMIN || role === UserRole.RH) && (
+                        {!selectedCandidate?.jobOffer?.id && (
                             <div className="space-y-2">
-                                <Label htmlFor="edit-manager">Manager assigné</Label>
+                                <Label htmlFor="edit-jobOffer">Offre d&apos;emploi</Label>
                                 <Select
-                                    id="edit-manager"
+                                    id="edit-jobOffer"
                                     options={[
-                                        { value: "", label: "Aucun manager" },
-                                        ...managers.map(m => ({ value: m.id.toString(), label: `${m.name} (${m.email})` }))
+                                        { value: "", label: "Aucune" },
+                                        ...jobOffers.map(jo => ({ value: jo.id.toString(), label: jo.title }))
                                     ]}
-                                    value={formData.managerId}
-                                    onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
+                                    value={formData.jobOfferId}
+                                    onChange={(e) => setFormData({ ...formData, jobOfferId: e.target.value })}
                                 />
                             </div>
                         )}
+                        {selectedCandidate?.jobOffer?.id && (
+                            <div className="space-y-2">
+                                <Label>Offre d&apos;emploi</Label>
+                                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600">
+                                    {selectedCandidate.jobOffer.title}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">Cette information ne peut pas être modifiée</p>
+                            </div>
+                        )}
+                        {(role === UserRole.ADMIN || role === UserRole.RH) && (
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-manager">Manager assigné</Label>
+                                {managers.length === 0 ? (
+                                    <div className="px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+                                        Aucun manager disponible dans cette organisation
+                                    </div>
+                                ) : (
+                                    <Select
+                                        id="edit-manager"
+                                        options={[
+                                            { value: "", label: "Aucun manager" },
+                                            ...managers.map(m => ({ value: m.id.toString(), label: `${m.name} (${m.email})` }))
+                                        ]}
+                                        value={formData.managerId}
+                                        onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
+                                    />
+                                )}
+                            </div>
+                        )}
                         <div className="space-y-2">
-                            <Label htmlFor="edit-notes">Notes</Label>
+                            <Label htmlFor="edit-notes">
+                                Notes
+                                {selectedCandidate?.jobOffer?.id && (
+                                    <span className="text-xs text-gray-500 ml-2">(Le candidat peut voir ces notes)</span>
+                                )}
+                            </Label>
                             <textarea
                                 id="edit-notes"
                                 className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                placeholder="Notes supplémentaires sur le candidat..."
+                                placeholder={selectedCandidate?.jobOffer?.id 
+                                    ? "Ajoutez des notes que le candidat pourra voir dans ses candidatures..."
+                                    : "Notes supplémentaires sur le candidat..."}
                                 value={formData.notes}
                                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                             />
@@ -1044,7 +1269,7 @@ export default function CandidatesPage() {
 
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex-1"></div>
-                        {(role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER) && (
+                        {(role === UserRole.ADMIN || role === UserRole.RH) && (
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -1099,7 +1324,7 @@ export default function CandidatesPage() {
                                             >
                                                 <Download className="h-4 w-4" />
                                             </Button>
-                                            {(role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER) && (
+                                            {(role === UserRole.ADMIN || role === UserRole.RH) && (
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
@@ -1183,6 +1408,161 @@ export default function CandidatesPage() {
                             ))}
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Evaluation Dialog */}
+            <Dialog open={isEvaluationDialogOpen} onOpenChange={(open) => {
+                setIsEvaluationDialogOpen(open)
+                if (!open) {
+                    setEvaluationData({
+                        candidateId: 0,
+                        interviewId: "",
+                        recommendation: "",
+                        comment: ""
+                    })
+                    setInterviews([])
+                    setEvaluations([])
+                }
+            }}>
+                <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <MessageSquare className="h-5 w-5 text-blue-600" />
+                            Donner mon avis
+                        </DialogTitle>
+                        <DialogDescription>
+                            Évaluez le candidat et donnez votre recommandation
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-6 mt-4">
+                        {/* Afficher les évaluations existantes */}
+                        {evaluations.length > 0 && (
+                            <div className="space-y-3">
+                                <h3 className="text-sm font-semibold text-gray-900">Mes évaluations précédentes</h3>
+                                {evaluations.map((evaluation) => (
+                                    <div key={evaluation.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    {evaluation.recommendation === EvaluationRecommendation.ACCEPT && (
+                                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                                    )}
+                                                    {evaluation.recommendation === EvaluationRecommendation.REJECT && (
+                                                        <XCircleIcon className="h-4 w-4 text-red-600" />
+                                                    )}
+                                                    {evaluation.recommendation === EvaluationRecommendation.SECOND_INTERVIEW && (
+                                                        <RotateCcw className="h-4 w-4 text-orange-600" />
+                                                    )}
+                                                    <span className="font-medium text-gray-900">
+                                                        {RECOMMENDATION_LABELS[evaluation.recommendation]}
+                                                    </span>
+                                                    {evaluation.interview && (
+                                                        <span className="text-xs text-gray-500">
+                                                            - {evaluation.interview.title}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {evaluation.comment && (
+                                                    <p className="text-sm text-gray-600 mt-2">{evaluation.comment}</p>
+                                                )}
+                                                <p className="text-xs text-gray-400 mt-2">
+                                                    {new Date(evaluation.createdAt).toLocaleDateString('fr-FR', {
+                                                        day: 'numeric',
+                                                        month: 'long',
+                                                        year: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Formulaire d'évaluation */}
+                        <div className="space-y-4 border-t pt-4">
+                            <h3 className="text-sm font-semibold text-gray-900">Nouvelle évaluation</h3>
+                            
+                            <div className="space-y-2">
+                                <Label htmlFor="evaluation-interview">Entretien (optionnel)</Label>
+                                {isLoadingInterviews ? (
+                                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Chargement des entretiens...
+                                    </div>
+                                ) : (
+                                    <Select
+                                        id="evaluation-interview"
+                                        options={[
+                                            { value: "", label: "Aucun entretien spécifique" },
+                                            ...interviews.map(i => ({
+                                                value: i.id.toString(),
+                                                label: `${i.title} - ${new Date(i.date).toLocaleDateString('fr-FR')} ${i.startTime}`
+                                            }))
+                                        ]}
+                                        value={evaluationData.interviewId}
+                                        onChange={(e) => setEvaluationData({ ...evaluationData, interviewId: e.target.value })}
+                                    />
+                                )}
+                                <p className="text-xs text-gray-500">
+                                    Sélectionnez l&apos;entretien concerné si cette évaluation fait suite à un entretien spécifique
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="evaluation-recommendation">Recommandation *</Label>
+                                <Select
+                                    id="evaluation-recommendation"
+                                    options={[
+                                        { value: "", label: "Sélectionnez une recommandation" },
+                                        { value: EvaluationRecommendation.ACCEPT, label: "✓ Acceptation" },
+                                        { value: EvaluationRecommendation.REJECT, label: "✗ Refus" },
+                                        { value: EvaluationRecommendation.SECOND_INTERVIEW, label: "↻ Deuxième entretien" }
+                                    ]}
+                                    value={evaluationData.recommendation}
+                                    onChange={(e) => setEvaluationData({ ...evaluationData, recommendation: e.target.value as EvaluationRecommendation })}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="evaluation-comment">Commentaire (optionnel)</Label>
+                                <textarea
+                                    id="evaluation-comment"
+                                    className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    placeholder="Ajoutez vos commentaires sur le candidat, ses compétences, son entretien..."
+                                    value={evaluationData.comment}
+                                    onChange={(e) => setEvaluationData({ ...evaluationData, comment: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEvaluationDialogOpen(false)} disabled={isSubmitting}>
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={handleSubmitEvaluation}
+                            disabled={isSubmitting || !evaluationData.recommendation}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Enregistrement...
+                                </>
+                            ) : (
+                                <>
+                                    <MessageSquare className="h-4 w-4 mr-2" />
+                                    Enregistrer mon avis
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
