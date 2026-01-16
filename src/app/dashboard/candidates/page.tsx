@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Plus, Filter, Mail, Phone, Calendar, ArrowRight, Loader2, XCircle, History, Clock, User, Trash2, Edit, FileText, Download} from "lucide-react"
+import { Search, Plus, Filter, Mail, Phone, Calendar, ArrowRight, Loader2, XCircle, History, Clock, User, Trash2, Edit, FileText, Download, X} from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,6 +67,8 @@ interface Candidate {
     organization?: { id: number; name: string }
     organizationId?: number
     notes?: string
+    manager?: { id: number; name: string; email: string } | null
+    managerId?: number | null
 }
 
 interface StateHistory {
@@ -131,6 +133,10 @@ export default function CandidatesPage() {
     const [forms, setForms] = useState<Form[]>([])
     const [documents, setDocuments] = useState<Document[]>([])
     const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
+    const [allDocuments, setAllDocuments] = useState<Document[]>([])
+    const [isLoadingAllDocuments, setIsLoadingAllDocuments] = useState(false)
+    const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
+    const [managers, setManagers] = useState<Array<{ id: number; name: string; email: string }>>([])
     
     const [formData, setFormData] = useState({
         firstName: "",
@@ -139,6 +145,7 @@ export default function CandidatesPage() {
         phone: "",
         jobOfferId: "",
         formId: "",
+        managerId: "",
         notes: ""
     })
 
@@ -178,6 +185,26 @@ export default function CandidatesPage() {
             }
         }
         fetchJobOffersAndForms()
+    }, [organizationId])
+
+    useEffect(() => {
+        const fetchManagers = async () => {
+            if (!organizationId) return
+            
+            try {
+                const res = await api.get(`/users/role/manager`).catch(() => ({ data: [] }))
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const orgManagers = (res.data || []).filter((user: any) => 
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    user.userOrganizations?.some((uo: any) => uo.organizationId === organizationId)
+                )
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                setManagers(orgManagers.map((u: any) => ({ id: u.id, name: u.name, email: u.email })))
+            } catch (error) {
+                console.error("Error fetching managers", error)
+            }
+        }
+        fetchManagers()
     }, [organizationId])
 
     const handleStateChange = async (candidateId: number, newState: CandidateState) => {
@@ -264,12 +291,13 @@ export default function CandidatesPage() {
             if (formData.phone) payload.phone = formData.phone
             if (formData.jobOfferId) payload.jobOfferId = parseInt(formData.jobOfferId)
             if (formData.formId) payload.formId = parseInt(formData.formId)
+            if (formData.managerId) payload.managerId = parseInt(formData.managerId)
             if (formData.notes) payload.notes = formData.notes
 
             await api.post(`/candidates?organizationId=${organizationId}`, payload)
             toast.success("Candidat créé avec succès")
             setIsCreateDialogOpen(false)
-            setFormData({ firstName: "", lastName: "", email: "", phone: "", jobOfferId: "", formId: "", notes: "" })
+            setFormData({ firstName: "", lastName: "", email: "", phone: "", jobOfferId: "", formId: "", managerId: "", notes: "" })
 
             const res = await api.get(`/candidates?organizationId=${organizationId}`)
             setCandidates(res.data || [])
@@ -295,6 +323,7 @@ export default function CandidatesPage() {
             phone: candidate.phone || "",
             jobOfferId: candidate.jobOffer?.id?.toString() || "",
             formId: candidate.form?.id?.toString() || "",
+            managerId: candidate.managerId?.toString() || "",
             notes: candidate.notes || ""
         })
         setIsEditDialogOpen(true)
@@ -316,13 +345,15 @@ export default function CandidatesPage() {
             
             if (formData.phone) payload.phone = formData.phone
             if (formData.jobOfferId) payload.jobOfferId = parseInt(formData.jobOfferId)
+            if (formData.managerId) payload.managerId = parseInt(formData.managerId)
+            else if (formData.managerId === "") payload.managerId = null
             if (formData.notes) payload.notes = formData.notes
 
             await api.patch(`/candidates/${selectedCandidateId}?organizationId=${organizationId}`, payload)
             toast.success("Candidat modifié avec succès")
             setIsEditDialogOpen(false)
             setSelectedCandidateId(null)
-            setFormData({ firstName: "", lastName: "", email: "", phone: "", jobOfferId: "", formId: "", notes: "" })
+            setFormData({ firstName: "", lastName: "", email: "", phone: "", jobOfferId: "", formId: "", managerId: "", notes: "" })
 
             const res = await api.get(`/candidates?organizationId=${organizationId}`)
             setCandidates(res.data || [])
@@ -379,6 +410,63 @@ export default function CandidatesPage() {
             setDocuments([])
         } finally {
             setIsLoadingDocuments(false)
+        }
+    }
+
+    const handleOpenAssignDocuments = async () => {
+        if (!organizationId || !selectedCandidateId) return
+        
+        setIsAssignDialogOpen(true)
+        setIsLoadingAllDocuments(true)
+        
+        try {
+            const res = await api.get(`/documents?organizationId=${organizationId}`)
+            const candidateDocsRes = await api.get(`/candidates/${selectedCandidateId}/documents?organizationId=${organizationId}`)
+            const candidateDocIds = (candidateDocsRes.data || []).map((d: Document) => d.id)
+            setAllDocuments((res.data || []).filter((doc: Document) => !candidateDocIds.includes(doc.id)))
+        } catch (error) {
+            console.error("Error fetching all documents", error)
+            toast.error("Erreur lors du chargement des documents")
+            setAllDocuments([])
+        } finally {
+            setIsLoadingAllDocuments(false)
+        }
+    }
+
+    const handleAssignDocument = async (documentId: number) => {
+        if (!organizationId || !selectedCandidateId) return
+        
+        try {
+            await api.post(`/candidates/${selectedCandidateId}/documents/${documentId}?organizationId=${organizationId}`)
+            toast.success("Document associé avec succès")
+            setIsAssignDialogOpen(false)
+            await handleOpenDocuments(selectedCandidateId)
+        } catch (error: unknown) {
+            console.error("Error assigning document", error)
+            const err = error as ApiErrorResponse
+            const message =
+                typeof err.response?.data?.message === "string"
+                    ? err.response.data.message
+                    : "Erreur lors de l'association du document"
+            toast.error(message)
+        }
+    }
+
+    const handleRemoveDocument = async (documentId: number) => {
+        if (!organizationId || !selectedCandidateId) return
+        
+        try {
+            await api.delete(`/candidates/${selectedCandidateId}/documents/${documentId}?organizationId=${organizationId}`)
+            toast.success("Document dissocié avec succès")
+            await handleOpenDocuments(selectedCandidateId)
+        } catch (error: unknown) {
+            console.error("Error removing document", error)
+            const err = error as ApiErrorResponse
+            const message =
+                typeof err.response?.data?.message === "string"
+                    ? err.response.data.message
+                    : "Erreur lors de la dissociation du document"
+            toast.error(message)
         }
     }
 
@@ -521,30 +609,43 @@ export default function CandidatesPage() {
                                         <Calendar className="h-3 w-3" />
                                         {new Date(candidate.createdAt).toLocaleDateString()}
                                     </div>
+                                    {candidate.manager && (
+                                        <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
+                                            <User className="h-3 w-3" />
+                                            <span>Manager: {candidate.manager.name}</span>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className={`h-8 rounded-full px-3 text-xs font-medium border ${STATE_COLORS[candidate.state]}`}>
-                                            {STATE_LABELS[candidate.state]}
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Changer le statut</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        {Object.values(CandidateState).map((state) => (
-                                            <DropdownMenuItem
-                                                key={state}
-                                                onClick={() => handleStateChange(candidate.id, state)}
-                                                className="gap-2"
-                                                disabled={candidate.state === state}
-                                            >
-                                                <div className={`w-2 h-2 rounded-full ${STATE_COLORS[state].split(' ')[1].replace('text-', 'bg-')}`} />
-                                                {STATE_LABELS[state]}
-                                            </DropdownMenuItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                {(role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER) && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" className={`h-8 rounded-full px-3 text-xs font-medium border ${STATE_COLORS[candidate.state]}`}>
+                                                {STATE_LABELS[candidate.state]}
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Changer le statut</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            {Object.values(CandidateState).map((state) => (
+                                                <DropdownMenuItem
+                                                    key={state}
+                                                    onClick={() => handleStateChange(candidate.id, state)}
+                                                    className="gap-2"
+                                                    disabled={candidate.state === state}
+                                                >
+                                                    <div className={`w-2 h-2 rounded-full ${STATE_COLORS[state].split(' ')[1].replace('text-', 'bg-')}`} />
+                                                    {STATE_LABELS[state]}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
+                                {!(role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER) && (
+                                    <Button variant="ghost" className={`h-8 rounded-full px-3 text-xs font-medium border ${STATE_COLORS[candidate.state]}`} disabled>
+                                        {STATE_LABELS[candidate.state]}
+                                    </Button>
+                                )}
 
                                 <div className="flex items-center gap-2">
                                     <Button 
@@ -566,26 +667,26 @@ export default function CandidatesPage() {
                                         <FileText className="h-4 w-4" />
                                     </Button>
                                     {(role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER) && (
-                                        <>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-8 w-8 text-gray-400 hover:text-red-600"
-                                                onClick={() => handleEdit(candidate)}
-                                                title="Modifier le candidat"
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-8 w-8 text-gray-400 hover:text-red-600"
-                                                onClick={() => handleDelete(candidate.id)}
-                                                title="Supprimer le candidat"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 text-gray-400 hover:text-red-600"
+                                            onClick={() => handleEdit(candidate)}
+                                            title="Modifier le candidat"
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    {(role === UserRole.ADMIN || role === UserRole.MANAGER) && (
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 text-gray-400 hover:text-red-600"
+                                            onClick={() => handleDelete(candidate.id)}
+                                            title="Supprimer le candidat (réservé à Admin RH et Manager)"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     )}
                                 </div>
                             </div>
@@ -697,7 +798,7 @@ export default function CandidatesPage() {
             {/* Create Candidate Dialog */}
             <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
                 if (!open && !isSubmitting) {
-                    setFormData({ firstName: "", lastName: "", email: "", phone: "", jobOfferId: "", formId: "", notes: "" })
+                    setFormData({ firstName: "", lastName: "", email: "", phone: "", jobOfferId: "", formId: "", managerId: "", notes: "" })
                 }
                 setIsCreateDialogOpen(open)
             }}>
@@ -758,6 +859,20 @@ export default function CandidatesPage() {
                                 onChange={(e) => setFormData({ ...formData, jobOfferId: e.target.value })}
                             />
                         </div>
+                        {(role === UserRole.ADMIN || role === UserRole.RH) && (
+                            <div className="space-y-2">
+                                <Label htmlFor="create-manager">Manager assigné</Label>
+                                <Select
+                                    id="create-manager"
+                                    options={[
+                                        { value: "", label: "Aucun manager" },
+                                        ...managers.map(m => ({ value: m.id.toString(), label: `${m.name} (${m.email})` }))
+                                    ]}
+                                    value={formData.managerId}
+                                    onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
+                                />
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label htmlFor="create-notes">Notes</Label>
                             <textarea
@@ -794,7 +909,7 @@ export default function CandidatesPage() {
             {/* Edit Candidate Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
                 if (!open && !isSubmitting) {
-                    setFormData({ firstName: "", lastName: "", email: "", phone: "", jobOfferId: "", formId: "", notes: "" })
+                    setFormData({ firstName: "", lastName: "", email: "", phone: "", jobOfferId: "", formId: "", managerId: "", notes: "" })
                     setSelectedCandidateId(null)
                 }
                 setIsEditDialogOpen(open)
@@ -856,6 +971,20 @@ export default function CandidatesPage() {
                                 onChange={(e) => setFormData({ ...formData, jobOfferId: e.target.value })}
                             />
                         </div>
+                        {(role === UserRole.ADMIN || role === UserRole.RH) && (
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-manager">Manager assigné</Label>
+                                <Select
+                                    id="edit-manager"
+                                    options={[
+                                        { value: "", label: "Aucun manager" },
+                                        ...managers.map(m => ({ value: m.id.toString(), label: `${m.name} (${m.email})` }))
+                                    ]}
+                                    value={formData.managerId}
+                                    onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
+                                />
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label htmlFor="edit-notes">Notes</Label>
                             <textarea
@@ -913,6 +1042,21 @@ export default function CandidatesPage() {
                         </DialogDescription>
                     </DialogHeader>
 
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex-1"></div>
+                        {(role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER) && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleOpenAssignDocuments}
+                                className="text-red-600 border-red-200 hover:bg-red-50"
+                            >
+                                <Plus className="h-4 w-4 mr-1.5" />
+                                Assigner un document
+                            </Button>
+                        )}
+                    </div>
+
                     {isLoadingDocuments ? (
                         <div className="flex items-center justify-center py-12">
                             <Loader2 className="h-8 w-8 animate-spin text-red-600" />
@@ -921,7 +1065,7 @@ export default function CandidatesPage() {
                         <div className="text-center py-12">
                             <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
                             <p className="text-gray-500">Aucun document associé</p>
-                            <p className="text-sm text-gray-400 mt-1">Les documents uploadés apparaîtront ici</p>
+                            <p className="text-sm text-gray-400 mt-1">Cliquez sur &quot;Assigner un document&quot; pour en ajouter</p>
                         </div>
                     ) : (
                         <div className="space-y-3 mt-4">
@@ -945,14 +1089,94 @@ export default function CandidatesPage() {
                                                 <p className="text-sm text-gray-600 mt-2">{doc.description}</p>
                                             )}
                                         </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-gray-400 hover:text-red-600"
+                                                onClick={() => handleDownloadDocument(doc.id, doc.originalName)}
+                                                title="Télécharger"
+                                            >
+                                                <Download className="h-4 w-4" />
+                                            </Button>
+                                            {(role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-gray-400 hover:text-red-600"
+                                                    onClick={() => handleRemoveDocument(doc.id)}
+                                                    title="Dissocier le document"
+                                                >
+                                                    <XCircle className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Assign Document Dialog */}
+            <Dialog open={isAssignDialogOpen} onOpenChange={(open) => {
+                setIsAssignDialogOpen(open)
+                if (!open) {
+                    setAllDocuments([])
+                }
+            }}>
+                <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Plus className="h-5 w-5 text-red-600" />
+                            Assigner un document
+                        </DialogTitle>
+                        <DialogDescription>
+                            Sélectionnez un document à associer au candidat
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {isLoadingAllDocuments ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="h-8 w-8 animate-spin text-red-600" />
+                        </div>
+                    ) : allDocuments.length === 0 ? (
+                        <div className="text-center py-12">
+                            <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                            <p className="text-gray-500">Aucun document disponible</p>
+                            <p className="text-sm text-gray-400 mt-1">Tous les documents sont déjà associés ou aucun document n&apos;existe</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3 mt-4">
+                            {allDocuments.map((doc) => (
+                                <div 
+                                    key={doc.id}
+                                    className="bg-gray-50 rounded-lg p-4 border border-gray-100 hover:border-red-200 transition-colors"
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <FileText className="h-4 w-4 text-gray-400" />
+                                                <h4 className="font-medium text-gray-900">{doc.originalName}</h4>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
+                                                <span className="px-2 py-1 bg-gray-200 rounded">{doc.type}</span>
+                                                <span>{(doc.size / 1024).toFixed(2)} KB</span>
+                                                <span>{new Date(doc.createdAt).toLocaleDateString('fr-FR')}</span>
+                                            </div>
+                                            {doc.description && (
+                                                <p className="text-sm text-gray-600 mt-2">{doc.description}</p>
+                                            )}
+                                        </div>
                                         <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-gray-400 hover:text-red-600"
-                                            onClick={() => handleDownloadDocument(doc.id, doc.originalName)}
-                                            title="Télécharger"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleAssignDocument(doc.id)}
+                                            className="text-red-600 border-red-200 hover:bg-red-50"
                                         >
-                                            <Download className="h-4 w-4" />
+                                            <Plus className="h-4 w-4 mr-1.5" />
+                                            Assigner
                                         </Button>
                                     </div>
                                 </div>
