@@ -220,6 +220,12 @@ export default function CalendarPage() {
     }, [selectedStatus, dateFrom, dateTo, organizationId])
 
     const handleCreate = () => {
+        // Si l'utilisateur est RH ou ADMIN, s'ajouter automatiquement comme participant
+        const initialParticipantIds = []
+        if (user && user.id && (role === UserRole.RH || role === UserRole.ADMIN)) {
+            initialParticipantIds.push(user.id)
+        }
+        
         setFormData({
             candidateId: "",
             title: "",
@@ -231,7 +237,7 @@ export default function CalendarPage() {
             status: InterviewStatus.PLANNED,
             location: "",
             meetingLink: "",
-            participantIds: [],
+            participantIds: initialParticipantIds,
             notes: "",
         })
         setSelectedInterview(null)
@@ -300,32 +306,58 @@ export default function CalendarPage() {
                 formData.date === selectedInterview.date && 
                 formData.startTime === selectedInterview.startTime
 
-            const payload = {
-                candidateId: parseInt(formData.candidateId),
-                title: formData.title.trim(),
-                description: formData.description.trim() || undefined,
-                // Ne pas envoyer date/startTime si on change seulement le statut
-                ...(isOnlyStatusChange ? {} : {
-                    date: formData.date,
-                    startTime: formData.startTime,
-                }),
-                duration: formData.duration,
-                type: formData.type,
-                status: formData.status,
-                location: formData.location.trim() || undefined,
-                meetingLink: formData.meetingLink.trim() || undefined,
-                participantIds: formData.participantIds.length > 0 
-                    ? formData.participantIds.map(id => typeof id === 'number' ? id : parseInt(String(id))).filter(id => !isNaN(id))
-                    : undefined,
-                notes: formData.notes.trim() || undefined,
-            }
-
             if (selectedInterview) {
-                await api.patch(`/interviews/${selectedInterview.id}?organizationId=${organizationId}`, payload)
+                // Pour la modification, on peut inclure le status
+                const updatePayload = {
+                    candidateId: parseInt(formData.candidateId),
+                    title: formData.title.trim(),
+                    description: formData.description.trim() || undefined,
+                    // Ne pas envoyer date/startTime si on change seulement le statut
+                    ...(isOnlyStatusChange ? {} : {
+                        date: formData.date,
+                        startTime: formData.startTime,
+                    }),
+                    duration: formData.duration,
+                    type: formData.type,
+                    status: formData.status,
+                    location: formData.location.trim() || undefined,
+                    meetingLink: formData.meetingLink.trim() || undefined,
+                    participantIds: formData.participantIds.length > 0 
+                        ? formData.participantIds.map(id => typeof id === 'number' ? id : parseInt(String(id))).filter(id => !isNaN(id))
+                        : undefined,
+                    notes: formData.notes.trim() || undefined,
+                }
+                await api.patch(`/interviews/${selectedInterview.id}?organizationId=${organizationId}`, updatePayload)
                 toast.success("Entretien modifié avec succès")
                 setIsEditDialogOpen(false)
             } else {
-                await api.post(`/interviews?organizationId=${organizationId}`, payload)
+                // Pour la création, on ne doit PAS inclure le status (il est défini automatiquement)
+                // Si l'utilisateur est RH, s'ajouter automatiquement comme participant
+                const participantIdsList = formData.participantIds.length > 0 
+                    ? formData.participantIds.map(id => typeof id === 'number' ? id : parseInt(String(id))).filter(id => !isNaN(id))
+                    : []
+                
+                // Ajouter automatiquement le RH comme participant s'il n'est pas déjà dans la liste
+                if (user && user.id && (role === UserRole.RH || role === UserRole.ADMIN)) {
+                    if (!participantIdsList.includes(user.id)) {
+                        participantIdsList.push(user.id)
+                    }
+                }
+                
+                const createPayload = {
+                    candidateId: parseInt(formData.candidateId),
+                    title: formData.title.trim(),
+                    description: formData.description.trim() || undefined,
+                    date: formData.date,
+                    startTime: formData.startTime,
+                    duration: formData.duration,
+                    type: formData.type,
+                    location: formData.location.trim() || undefined,
+                    meetingLink: formData.meetingLink.trim() || undefined,
+                    participantIds: participantIdsList.length > 0 ? participantIdsList : undefined,
+                    notes: formData.notes.trim() || undefined,
+                }
+                await api.post(`/interviews?organizationId=${organizationId}`, createPayload)
                 toast.success("Entretien créé avec succès")
                 setIsCreateDialogOpen(false)
             }
