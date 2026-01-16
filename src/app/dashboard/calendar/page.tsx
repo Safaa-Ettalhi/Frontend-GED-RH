@@ -61,6 +61,17 @@ interface Candidate {
     firstName: string
     lastName: string
     email: string
+    jobOfferId?: number
+    jobOffer?: {
+        id: number
+        title: string
+    }
+}
+
+interface JobOffer {
+    id: number
+    title: string
+    description?: string
 }
 
 interface User {
@@ -104,6 +115,7 @@ export default function CalendarPage() {
     const { user, role, organizationId } = useRole()
     const [interviews, setInterviews] = useState<Interview[]>([])
     const [candidates, setCandidates] = useState<Candidate[]>([])
+    const [jobOffers, setJobOffers] = useState<JobOffer[]>([])
     const [users, setUsers] = useState<User[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
@@ -120,6 +132,7 @@ export default function CalendarPage() {
     const [isCalendarConfigured, setIsCalendarConfigured] = useState<boolean | null>(null)
     
     const [formData, setFormData] = useState({
+        jobOfferId: "",
         candidateId: "",
         title: "",
         description: "",
@@ -138,6 +151,7 @@ export default function CalendarPage() {
         if (organizationId) {
             fetchInterviews()
             fetchCandidates()
+            fetchJobOffers()
             fetchUsers()
             checkCalendarConfig()
         }
@@ -201,6 +215,17 @@ export default function CalendarPage() {
         }
     }
 
+    const fetchJobOffers = async () => {
+        if (!organizationId) return
+        
+        try {
+            const res = await api.get(`/forms/job-offers?organizationId=${organizationId}`)
+            setJobOffers(res.data || [])
+        } catch (error) {
+            console.error("Error fetching job offers", error)
+        }
+    }
+
     const fetchUsers = async () => {
         if (!organizationId) return
         
@@ -225,6 +250,7 @@ export default function CalendarPage() {
         }
         
         setFormData({
+            jobOfferId: "",
             candidateId: "",
             title: "",
             description: "",
@@ -252,7 +278,10 @@ export default function CalendarPage() {
             ? InterviewStatus.COMPLETED
             : interview.status
 
+        // Récupérer le jobOfferId du candidat si disponible
+        const candidate = candidates.find(c => c.id === interview.candidateId)
         setFormData({
+            jobOfferId: candidate?.jobOfferId?.toString() || "",
             candidateId: interview.candidateId.toString(),
             title: interview.title,
             description: interview.description || "",
@@ -279,6 +308,10 @@ export default function CalendarPage() {
     }
 
     const handleSubmit = async () => {
+        if (!selectedInterview && (!formData.jobOfferId || !formData.candidateId)) {
+            toast.error("Veuillez sélectionner une offre d'emploi et un candidat")
+            return
+        }
         if (!formData.candidateId || !formData.title || !formData.date || !formData.startTime) {
             toast.error("Veuillez remplir tous les champs requis")
             return
@@ -348,6 +381,7 @@ export default function CalendarPage() {
             }
             
             setFormData({
+                jobOfferId: "",
                 candidateId: "",
                 title: "",
                 description: "",
@@ -479,7 +513,7 @@ export default function CalendarPage() {
         return matchesSearch && matchesType
     })
 
-    const canManage = role === UserRole.ADMIN || role === UserRole.RH || role === UserRole.MANAGER
+    const canManage = role === UserRole.ADMIN || role === UserRole.RH
 
     if (!organizationId) {
         return (
@@ -793,6 +827,7 @@ export default function CalendarPage() {
                     setIsCreateDialogOpen(false)
                     setIsEditDialogOpen(false)
                     setFormData({
+                        jobOfferId: "",
                         candidateId: "",
                         title: "",
                         description: "",
@@ -822,20 +857,74 @@ export default function CalendarPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-5 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="candidate" className="text-sm font-medium text-gray-700">Candidat *</Label>
-                            <Select
-                                id="candidate"
-                                value={formData.candidateId}
-                                onChange={(e) => setFormData(prev => ({ ...prev, candidateId: e.target.value }))}
-                                options={candidates.map(c => ({
-                                    value: c.id.toString(),
-                                    label: `${c.firstName} ${c.lastName} (${c.email})`
-                                }))}
-                                title="Sélectionner un candidat"
-                                aria-label="Candidat"
-                            />
-                        </div>
+                        {!selectedInterview && (
+                            <>
+                                <div className="space-y-2">
+                                    <Label htmlFor="jobOffer" className="text-sm font-medium text-gray-700">Offre d&apos;emploi *</Label>
+                                    <Select
+                                        id="jobOffer"
+                                        value={formData.jobOfferId}
+                                        onChange={(e) => {
+                                            setFormData(prev => ({ 
+                                                ...prev, 
+                                                jobOfferId: e.target.value,
+                                                candidateId: "" 
+                                            }))
+                                        }}
+                                        options={[
+                                            { value: "", label: "Sélectionner une offre" },
+                                            ...jobOffers.map(jo => ({
+                                                value: jo.id.toString(),
+                                                label: jo.title
+                                            }))
+                                        ]}
+                                        title="Sélectionner une offre d'emploi"
+                                        aria-label="Offre d'emploi"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="candidate" className="text-sm font-medium text-gray-700">Candidat *</Label>
+                                    {formData.jobOfferId ? (
+                                        <Select
+                                            id="candidate"
+                                            value={formData.candidateId}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, candidateId: e.target.value }))}
+                                            options={[
+                                                { value: "", label: "Sélectionner un candidat" },
+                                                ...candidates
+                                                    .filter(c => c.jobOfferId === parseInt(formData.jobOfferId))
+                                                    .map(c => ({
+                                                        value: c.id.toString(),
+                                                        label: `${c.firstName} ${c.lastName} (${c.email})`
+                                                    }))
+                                            ]}
+                                            title="Sélectionner un candidat qui a postulé à cette offre"
+                                            aria-label="Candidat"
+                                        />
+                                    ) : (
+                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-500">
+                                            Veuillez d&apos;abord sélectionner une offre d&apos;emploi
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                        {selectedInterview && (
+                            <div className="space-y-2">
+                                <Label htmlFor="candidate" className="text-sm font-medium text-gray-700">Candidat *</Label>
+                                <Select
+                                    id="candidate"
+                                    value={formData.candidateId}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, candidateId: e.target.value }))}
+                                    options={candidates.map(c => ({
+                                        value: c.id.toString(),
+                                        label: `${c.firstName} ${c.lastName} (${c.email})`
+                                    }))}
+                                    title="Sélectionner un candidat"
+                                    aria-label="Candidat"
+                                />
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label htmlFor="title" className="text-sm font-medium text-gray-700">Titre *</Label>
@@ -1022,6 +1111,7 @@ export default function CalendarPage() {
                                 setIsCreateDialogOpen(false)
                                 setIsEditDialogOpen(false)
                                 setFormData({
+                                    jobOfferId: "",
                                     candidateId: "",
                                     title: "",
                                     description: "",
@@ -1042,7 +1132,7 @@ export default function CalendarPage() {
                         </Button>
                         <Button
                             onClick={handleSubmit}
-                            disabled={isSubmitting || !formData.candidateId || !formData.title || !formData.date || !formData.startTime}
+                            disabled={isSubmitting || (!selectedInterview && (!formData.jobOfferId || !formData.candidateId)) || !formData.title || !formData.date || !formData.startTime}
                             className="bg-red-600 hover:bg-red-700"
                         >
                             {isSubmitting ? (
