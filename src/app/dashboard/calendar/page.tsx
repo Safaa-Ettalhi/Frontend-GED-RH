@@ -149,7 +149,6 @@ export default function CalendarPage() {
             const isConfigured = res.data?.configured === true && !res.data?.needsReauth
             setIsCalendarConfigured(isConfigured)
             
-            // Si l'API n'est pas activée, afficher un avertissement
             if (res.data?.error && res.data.error.includes("API Google Calendar n'est pas activée")) {
                 toast.warning(
                     "L'API Google Calendar n'est pas activée. Activez l'API dans Google Cloud Console.",
@@ -220,7 +219,6 @@ export default function CalendarPage() {
     }, [selectedStatus, dateFrom, dateTo, organizationId])
 
     const handleCreate = () => {
-        // Si l'utilisateur est RH ou ADMIN, s'ajouter automatiquement comme participant
         const initialParticipantIds = []
         if (user && user.id && (role === UserRole.RH || role === UserRole.ADMIN)) {
             initialParticipantIds.push(user.id)
@@ -245,12 +243,9 @@ export default function CalendarPage() {
     }
 
     const handleEdit = (interview: Interview) => {
-        // Vérifier si la date de l'entretien est dans le passé
         const interviewDateTime = new Date(`${interview.date}T${interview.startTime}`)
         const isPast = interviewDateTime < new Date()
         
-        // Si la date est passée et que le statut n'est pas déjà COMPLETED ou CANCELLED,
-        // suggérer automatiquement COMPLETED
         const suggestedStatus = isPast && 
             interview.status !== InterviewStatus.COMPLETED && 
             interview.status !== InterviewStatus.CANCELLED
@@ -276,7 +271,6 @@ export default function CalendarPage() {
         setSelectedInterview(interview)
         setIsEditDialogOpen(true)
         
-        // Afficher un message informatif si le statut a été automatiquement changé
         if (isPast && suggestedStatus === InterviewStatus.COMPLETED && interview.status !== InterviewStatus.COMPLETED) {
             toast.info("L'entretien est dans le passé, le statut a été automatiquement mis à 'Terminé'", {
                 duration: 4000,
@@ -289,8 +283,6 @@ export default function CalendarPage() {
             toast.error("Veuillez remplir tous les champs requis")
             return
         }
-
-        // Validation de la durée
         if (formData.duration < 15 || formData.duration > 480) {
             toast.error("La durée doit être entre 15 et 480 minutes (8 heures)")
             return
@@ -300,19 +292,15 @@ export default function CalendarPage() {
 
         setIsSubmitting(true)
         try {
-            // Si on modifie un entretien existant et qu'on change seulement le statut,
-            // ne pas envoyer la date/heure pour éviter la validation "date dans le passé"
             const isOnlyStatusChange = selectedInterview && 
                 formData.date === selectedInterview.date && 
                 formData.startTime === selectedInterview.startTime
 
             if (selectedInterview) {
-                // Pour la modification, on peut inclure le status
                 const updatePayload = {
                     candidateId: parseInt(formData.candidateId),
                     title: formData.title.trim(),
                     description: formData.description.trim() || undefined,
-                    // Ne pas envoyer date/startTime si on change seulement le statut
                     ...(isOnlyStatusChange ? {} : {
                         date: formData.date,
                         startTime: formData.startTime,
@@ -331,13 +319,10 @@ export default function CalendarPage() {
                 toast.success("Entretien modifié avec succès")
                 setIsEditDialogOpen(false)
             } else {
-                // Pour la création, on ne doit PAS inclure le status (il est défini automatiquement)
-                // Si l'utilisateur est RH, s'ajouter automatiquement comme participant
                 const participantIdsList = formData.participantIds.length > 0 
                     ? formData.participantIds.map(id => typeof id === 'number' ? id : parseInt(String(id))).filter(id => !isNaN(id))
                     : []
                 
-                // Ajouter automatiquement le RH comme participant s'il n'est pas déjà dans la liste
                 if (user && user.id && (role === UserRole.RH || role === UserRole.ADMIN)) {
                     if (!participantIdsList.includes(user.id)) {
                         participantIdsList.push(user.id)
@@ -382,14 +367,12 @@ export default function CalendarPage() {
             console.error("Error saving interview", error)
             const err = error as ApiErrorResponse
             
-            // Gérer les messages d'erreur de validation (peuvent être des tableaux)
             let message = selectedInterview
                 ? "Erreur lors de la modification de l'entretien"
                 : "Erreur lors de la création de l'entretien"
             
             if (err.response?.data?.message) {
                 if (Array.isArray(err.response.data.message)) {
-                    // Si c'est un tableau, prendre le premier message et le traduire si nécessaire
                     const firstError = err.response.data.message[0] as string
                     if (firstError.includes("duration must not be greater than 480")) {
                         message = "La durée de l'entretien ne peut pas dépasser 480 minutes (8 heures)"
@@ -439,14 +422,12 @@ export default function CalendarPage() {
             const response = await api.post(`/interviews/${interview.id}/sync-calendar?organizationId=${organizationId}`)
             toast.success(response.data?.message || "Entretien synchronisé avec Google Calendar")
             fetchInterviews()
-            // Re-vérifier la configuration après une synchronisation réussie
             checkCalendarConfig()
         } catch (error: unknown) {
             console.error("Error syncing calendar", error)
             const err = error as ApiErrorResponse
             let message = "Erreur lors de la synchronisation avec Google Calendar"
             
-            // Extraire le message d'erreur
             if (Array.isArray(err.response?.data?.message)) {
                 message = err.response.data.message[0] || message
             } else if (typeof err.response?.data?.message === "string") {
@@ -455,7 +436,6 @@ export default function CalendarPage() {
                 message = err.response.data.error
             }
             
-            // Vérifier si c'est un problème de configuration ou d'API non activée
             const errorMessage = message.toLowerCase()
             if (
                 errorMessage.includes("non configuré") || 
