@@ -65,6 +65,7 @@ interface Form {
     description?: string
     type: FormType
     isActive: boolean
+    isPublic: boolean
     organizationId: number
     fields?: FormField[]
     createdAt: string
@@ -98,6 +99,7 @@ export default function FormsPage() {
         description: "",
         type: FormType.RECRUITMENT,
         isActive: true,
+        isPublic: false,
         fields: [] as FormField[],
     })
 
@@ -129,6 +131,7 @@ export default function FormsPage() {
             description: "",
             type: FormType.RECRUITMENT,
             isActive: true,
+            isPublic: false,
             fields: [],
         })
         setSelectedForm(null)
@@ -141,6 +144,7 @@ export default function FormsPage() {
             description: form.description || "",
             type: form.type,
             isActive: form.isActive,
+            isPublic: form.isPublic,
             fields: form.fields ? [...form.fields] : [],
         })
         setSelectedForm(form)
@@ -168,6 +172,7 @@ export default function FormsPage() {
                     description: formData.description.trim() || undefined,
                     type: formData.type,
                     isActive: formData.isActive,
+                    isPublic: formData.isPublic,
                 }
                 
                 await api.patch(`/forms/${selectedForm.id}?organizationId=${organizationId}`, formPayload)
@@ -209,6 +214,7 @@ export default function FormsPage() {
                     description: formData.description.trim() || undefined,
                     type: formData.type,
                     isActive: formData.isActive,
+                    isPublic: formData.isPublic,
                     fields: formData.fields
                         .filter(field => field.label.trim())
                         .map((field, index) => ({
@@ -235,6 +241,7 @@ export default function FormsPage() {
                 description: "",
                 type: FormType.RECRUITMENT,
                 isActive: true,
+                isPublic: false,
                 fields: [],
             })
             setSelectedForm(null)
@@ -527,6 +534,15 @@ export default function FormsPage() {
                                                 Inactif
                                             </span>
                                         )}
+                                        {form.isPublic ? (
+                                            <span className="text-xs px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                                Public
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
+                                                Interne
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -587,6 +603,7 @@ export default function FormsPage() {
                         description: "",
                         type: FormType.RECRUITMENT,
                         isActive: true,
+                        isPublic: false,
                         fields: [],
                     })
                     setSelectedForm(null)
@@ -631,7 +648,7 @@ export default function FormsPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="form-type" className="text-sm font-medium text-gray-700">Type *</Label>
+                                <Label htmlFor="form-type" className="text-sm font-medium text-gray-700">Processus RH *</Label>
                                 <Select
                                     id="form-type"
                                     value={formData.type}
@@ -640,9 +657,10 @@ export default function FormsPage() {
                                         value: type,
                                         label: FORM_TYPE_LABELS[type]
                                     }))}
-                                    title="Type de formulaire"
-                                    aria-label="Type de formulaire"
+                                    title="Processus RH associé"
+                                    aria-label="Processus RH associé"
                                 />
+                                <p className="text-xs text-gray-500">Associer le formulaire à un processus RH</p>
                             </div>
 
                             <div className="space-y-2">
@@ -659,6 +677,26 @@ export default function FormsPage() {
                                     aria-label="Statut du formulaire"
                                 />
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="form-visibility" className="text-sm font-medium text-gray-700">Visibilité</Label>
+                            <Select
+                                id="form-visibility"
+                                value={formData.isPublic ? "public" : "internal"}
+                                onChange={(e) => setFormData(prev => ({ ...prev, isPublic: e.target.value === "public" }))}
+                                options={[
+                                    { value: "public", label: "Public" },
+                                    { value: "internal", label: "Interne" }
+                                ]}
+                                title="Contrôler la visibilité du formulaire"
+                                aria-label="Visibilité du formulaire"
+                            />
+                            <p className="text-xs text-gray-500">
+                                {formData.isPublic 
+                                    ? "Public : Accessible aux candidats externes" 
+                                    : "Interne : Accessible uniquement aux utilisateurs de l'organisation"}
+                            </p>
                         </div>
 
                         <div className="space-y-3">
@@ -868,13 +906,14 @@ export default function FormsPage() {
                             onClick={() => {
                                 setIsCreateDialogOpen(false)
                                 setIsEditDialogOpen(false)
-                                setFormData({
-                                    name: "",
-                                    description: "",
-                                    type: FormType.RECRUITMENT,
-                                    isActive: true,
-                                    fields: [],
-                                })
+                    setFormData({
+                        name: "",
+                        description: "",
+                        type: FormType.RECRUITMENT,
+                        isActive: true,
+                        isPublic: false,
+                        fields: [],
+                    })
                                 setSelectedForm(null)
                             }}
                         >
