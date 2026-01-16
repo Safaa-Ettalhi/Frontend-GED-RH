@@ -171,18 +171,14 @@ export default function NotificationsPage() {
     const [selectedType, setSelectedType] = useState<string>("all")
     const [selectedStatus, setSelectedStatus] = useState<string>("all")
 
-    // Gérer les nouvelles notifications en temps réel
     const handleNewNotification = useCallback(
         (notification: NotificationType) => {
-            // Convertir le type string en NotificationTypeEnum pour la compatibilité
             const typedNotification: Notification = {
                 ...notification,
                 type: notification.type as NotificationTypeEnum,
             }
 
-            // Ajouter la nouvelle notification au début de la liste
             setNotifications((prev) => {
-                // Vérifier si la notification existe déjà (éviter les doublons)
                 const exists = prev.some((n) => n.id === typedNotification.id)
                 if (exists) {
                     return prev
@@ -190,7 +186,6 @@ export default function NotificationsPage() {
                 return [typedNotification, ...prev]
             })
 
-            // Afficher une notification toast
             toast.success(typedNotification.title, {
                 description: typedNotification.message,
                 duration: 5000,
@@ -199,7 +194,6 @@ export default function NotificationsPage() {
         []
     )
 
-    // Connexion WebSocket pour les notifications en temps réel
     const { isConnected } = useNotifications({
         organizationId,
         onNewNotification: handleNewNotification,
@@ -224,7 +218,6 @@ export default function NotificationsPage() {
             const res = await api.get(`/notifications?organizationId=${organizationId}&limit=100`)
             const data = res.data
             const notificationsList = Array.isArray(data) ? data : data.notifications || []
-            // Trier par date (plus récentes en premier)
             const sorted = notificationsList.sort(
                 (a: Notification, b: Notification) =>
                     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -246,7 +239,6 @@ export default function NotificationsPage() {
     const filterNotifications = () => {
         let filtered = [...notifications]
 
-        // Filter by search query
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase()
             filtered = filtered.filter(
@@ -256,12 +248,10 @@ export default function NotificationsPage() {
             )
         }
 
-        // Filter by type
         if (selectedType !== "all") {
             filtered = filtered.filter((notif) => notif.type === selectedType)
         }
 
-        // Filter by status
         if (selectedStatus === "read") {
             filtered = filtered.filter((notif) => notif.read)
         } else if (selectedStatus === "unread") {
@@ -299,7 +289,6 @@ export default function NotificationsPage() {
 
         setIsMarking("all")
         try {
-            // Utiliser la fonction du contexte qui met à jour le compteur global
             await markAllAsReadContext()
             setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })))
             toast.success("Toutes les notifications ont été marquées comme lues")
