@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { FileText, Calendar, Bell, Clock, Search, Briefcase, ArrowRight } from "lucide-react"
+import api from "@/lib/api"
 import Link from "next/link"
 import { toast } from "sonner"
 import type { User, DashboardMetricProps } from "@/types/dashboard"
@@ -11,7 +12,7 @@ interface CandidateDashboardProps {
     organizationId?: number
 }
 
-export function CandidateDashboard({ user }: CandidateDashboardProps) {
+export function CandidateDashboard({ user, organizationId }: CandidateDashboardProps) {
     const [stats, setStats] = useState({
         applicationsCount: 0,
         interviewsCount: 0,
@@ -21,11 +22,32 @@ export function CandidateDashboard({ user }: CandidateDashboardProps) {
 
     useEffect(() => {
         const fetchData = async () => {
+            if (!organizationId) {
+                setLoading(false)
+                return
+            }
+
             try {
+                const [applicationsRes, interviewsRes, notificationsRes] = await Promise.all([
+                    api.get(`/candidates/me/applications?organizationId=${organizationId}`).catch(() => ({ data: [] })),
+                    api.get(`/interviews/me/interviews?organizationId=${organizationId}`).catch(() => ({ data: [] })),
+                    api.get(`/notifications/count?organizationId=${organizationId}`).catch(() => ({ data: { count: 0 } }))
+                ])
+
+                const applications = applicationsRes.data || []
+                const interviews = interviewsRes.data || []
+                const now = new Date()
+                
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const upcomingInterviews = interviews.filter((interview: any) => {
+                    const interviewDate = new Date(`${interview.date}T${interview.startTime}`)
+                    return interviewDate >= now && interview.status !== 'cancelled'
+                })
+
                 setStats({
-                    applicationsCount: 0,
-                    interviewsCount: 0,
-                    unreadNotifications: 0,
+                    applicationsCount: applications.length,
+                    interviewsCount: upcomingInterviews.length,
+                    unreadNotifications: notificationsRes.data?.count || 0,
                 })
             } catch (error) {
                 console.error("Erreur chargement dashboard", error)
@@ -37,7 +59,7 @@ export function CandidateDashboard({ user }: CandidateDashboardProps) {
         }
 
         fetchData()
-    }, [])
+    }, [organizationId])
 
     if (loading) {
         return (
@@ -94,7 +116,7 @@ export function CandidateDashboard({ user }: CandidateDashboardProps) {
                     <h3 className="text-xl font-medium tracking-tight text-gray-900">Actions</h3>
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-xl shadow-gray-100/50 p-6 space-y-4">
                         <Link 
-                            href="/offres" 
+                            href="/dashboard/offres" 
                             className="flex items-center gap-4 p-4 bg-gradient-to-br from-red-50 to-rose-50 border border-red-200 rounded-xl hover:border-red-300 hover:shadow-lg hover:shadow-red-500/10 transition-all duration-300 group"
                         >
                             <div className="h-12 w-12 bg-gradient-to-br from-red-600 to-rose-600 rounded-xl flex items-center justify-center text-white shadow-md group-hover:shadow-lg transition-all">
