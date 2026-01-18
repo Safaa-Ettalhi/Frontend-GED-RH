@@ -71,7 +71,7 @@ interface JobOffersClientProps {
 
 export default function JobOffersClient({ initialJobOffers }: JobOffersClientProps) {
     const router = useRouter()
-    const { user, role, organizationId } = useRole()
+    const { user, role } = useRole()
     const [jobOffers, setJobOffers] = useState<JobOffer[]>(initialJobOffers)
     const [isLoading, setIsLoading] = useState(initialJobOffers.length === 0)
     const [searchQuery, setSearchQuery] = useState("")
@@ -90,7 +90,6 @@ export default function JobOffersClient({ initialJobOffers }: JobOffersClientPro
         documentId: ""
     })
 
-    // Fallback: refetch côté client si le SSR n'a pas retourné de données
     useEffect(() => {
         if (initialJobOffers.length === 0) {
             const fetchJobOffers = async () => {
