@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Plus, FileText, Edit, Trash2, Eye, Loader2, GripVertical, X, CheckCircle2, XCircle, Search } from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -103,13 +103,7 @@ export default function FormsPage() {
         fields: [] as FormField[],
     })
 
-    useEffect(() => {
-        if (organizationId) {
-            fetchForms()
-        }
-    }, [organizationId])
-
-    const fetchForms = async () => {
+    const fetchForms = useCallback(async () => {
         if (!organizationId) return
         
         try {
@@ -123,7 +117,13 @@ export default function FormsPage() {
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [organizationId])
+
+    useEffect(() => {
+        if (organizationId) {
+            fetchForms()
+        }
+    }, [organizationId, fetchForms])
 
     const handleCreate = () => {
         setFormData({

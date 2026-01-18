@@ -17,7 +17,7 @@ function DashboardLayoutContent({
     children: React.ReactNode
 }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-    const { user, role, permissions } = useRole()
+    const { user, role } = useRole()
     const { unreadCount } = useNotificationsContext()
     const pathname = usePathname()
 

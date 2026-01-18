@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Briefcase, Plus, Edit, Trash2, MapPin, Clock, DollarSign, FileText, Loader2, Search} from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -67,7 +67,7 @@ interface Form {
 }
 
 export default function JobOffersPage() {
-    const { user, role, organizationId } = useRole()
+    const { role, organizationId } = useRole()
     const [jobOffers, setJobOffers] = useState<JobOffer[]>([])
     const [forms, setForms] = useState<Form[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -89,19 +89,7 @@ export default function JobOffersPage() {
 
     const canManage = role === UserRole.ADMIN || role === UserRole.RH
 
-    useEffect(() => {
-        if (!canManage) {
-            setIsLoading(false)
-            return
-        }
-
-        if (organizationId) {
-            fetchJobOffers()
-            fetchForms()
-        }
-    }, [organizationId, canManage])
-
-    const fetchJobOffers = async () => {
+    const fetchJobOffers = useCallback(async () => {
         if (!organizationId) return
 
         try {
@@ -115,9 +103,9 @@ export default function JobOffersPage() {
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [organizationId])
 
-    const fetchForms = async () => {
+    const fetchForms = useCallback(async () => {
         if (!organizationId) return
 
         try {
@@ -126,7 +114,19 @@ export default function JobOffersPage() {
         } catch (error) {
             console.error("Error fetching forms", error)
         }
-    }
+    }, [organizationId])
+
+    useEffect(() => {
+        if (!canManage) {
+            setIsLoading(false)
+            return
+        }
+
+        if (organizationId) {
+            fetchJobOffers()
+            fetchForms()
+        }
+    }, [organizationId, canManage, fetchJobOffers, fetchForms])
 
     const handleCreate = () => {
         setFormData({

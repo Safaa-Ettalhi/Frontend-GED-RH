@@ -194,23 +194,13 @@ export default function NotificationsPage() {
         []
     )
 
-    const { isConnected } = useNotifications({
+    useNotifications({
         organizationId,
         onNewNotification: handleNewNotification,
         enabled: !!organizationId,
     })
 
-    useEffect(() => {
-        if (organizationId) {
-            fetchNotifications()
-        }
-    }, [organizationId])
-
-    useEffect(() => {
-        filterNotifications()
-    }, [notifications, searchQuery, selectedType, selectedStatus])
-
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async () => {
         if (!organizationId) return
 
         setIsLoading(true)
@@ -237,9 +227,9 @@ export default function NotificationsPage() {
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [organizationId])
 
-    const filterNotifications = () => {
+    const filterNotifications = useCallback(() => {
         let filtered = [...notifications]
 
         if (searchQuery.trim()) {
@@ -262,7 +252,17 @@ export default function NotificationsPage() {
         }
 
         setFilteredNotifications(filtered)
-    }
+    }, [notifications, searchQuery, selectedType, selectedStatus])
+
+    useEffect(() => {
+        if (organizationId) {
+            fetchNotifications()
+        }
+    }, [organizationId, fetchNotifications])
+
+    useEffect(() => {
+        filterNotifications()
+    }, [filterNotifications])
 
     const handleMarkAsRead = async (id: string) => {
         if (!organizationId) return

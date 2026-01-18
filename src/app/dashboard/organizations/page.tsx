@@ -34,7 +34,7 @@ type ApiErrorResponse = {
 }
 
 export default function OrganizationsPage() {
-    const { user, role, organizationId } = useRole()
+    const { role, organizationId } = useRole()
     const [organization, setOrganization] = useState<Organization | null>(null)
     const [stats, setStats] = useState<OrganizationStats | null>(null)
     const [isLoading, setIsLoading] = useState(true)
