@@ -53,6 +53,7 @@ export function RegisterForm() {
         setIsLoading(true)
 
         try {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { confirmPassword, ...payload } = values
             await api.post("/auth/register", payload)
 

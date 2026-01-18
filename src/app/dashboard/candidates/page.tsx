@@ -165,6 +165,7 @@ export default function CandidatesPage() {
     const [isDocumentsDialogOpen, setIsDocumentsDialogOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [jobOffers, setJobOffers] = useState<JobOffer[]>([])
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [forms, setForms] = useState<Form[]>([])
     const [documents, setDocuments] = useState<Document[]>([])
     const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
@@ -174,6 +175,7 @@ export default function CandidatesPage() {
     const [managers, setManagers] = useState<Array<{ id: number; name: string; email: string }>>([])
     const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false)
     const [evaluations, setEvaluations] = useState<ManagerEvaluation[]>([])
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [isLoadingEvaluations, setIsLoadingEvaluations] = useState(false)
     const [interviews, setInterviews] = useState<Interview[]>([])
     const [isLoadingInterviews, setIsLoadingInterviews] = useState(false)

@@ -61,7 +61,6 @@ export function AdminDashboard({ user, organizationId }: AdminDashboardProps) {
                 })
             } catch (error) {
                 console.error("Erreur chargement dashboard", error)
-                const errorMessage = error instanceof Error ? error.message : "Erreur inconnue"
                 toast.error("Erreur lors du chargement des données")
             } finally {
                 setLoading(false)

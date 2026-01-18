@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Building2, Edit, Save, X, Loader2, Users, FileText, UserCheck, Calendar } from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -45,14 +45,7 @@ export default function OrganizationsPage() {
         description: "",
     })
 
-    useEffect(() => {
-        if (organizationId && role === UserRole.ADMIN) {
-            fetchOrganization()
-            fetchStats()
-        }
-    }, [organizationId, role])
-
-    const fetchOrganization = async () => {
+    const fetchOrganization = useCallback(async () => {
         if (!organizationId) return
         
         try {
@@ -69,9 +62,9 @@ export default function OrganizationsPage() {
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [organizationId])
 
-    const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
         if (!organizationId) return
         
         try {
@@ -93,7 +86,14 @@ export default function OrganizationsPage() {
         } catch (error) {
             console.error("Error fetching stats", error)
         }
-    }
+    }, [organizationId])
+
+    useEffect(() => {
+        if (organizationId && role === UserRole.ADMIN) {
+            fetchOrganization()
+            fetchStats()
+        }
+    }, [organizationId, role, fetchOrganization, fetchStats])
 
     const handleEdit = () => {
         setIsEditing(true)
