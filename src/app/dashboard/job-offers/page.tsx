@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Briefcase, Plus, Edit, Trash2, MapPin, Clock, DollarSign, FileText, Loader2, Search, X } from "lucide-react"
+import { Briefcase, Plus, Edit, Trash2, MapPin, Clock, DollarSign, FileText, Loader2, Search} from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

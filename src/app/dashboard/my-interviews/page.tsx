@@ -71,7 +71,7 @@ interface Interview {
 }
 
 export default function MyInterviewsPage() {
-    const { user, role, organizationId } = useRole()
+    const {role } = useRole()
     const [interviews, setInterviews] = useState<Interview[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isUpdating, setIsUpdating] = useState<number | null>(null)

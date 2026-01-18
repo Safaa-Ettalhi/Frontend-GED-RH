@@ -162,7 +162,7 @@ const getNotificationColor = (type: string) => {
 
 export default function NotificationsPage() {
     const { organizationId } = useRole()
-    const { refreshCount, markAllAsRead: markAllAsReadContext, isConnected: wsConnected } = useNotificationsContext()
+    const {markAllAsRead: markAllAsReadContext, isConnected: wsConnected } = useNotificationsContext()
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([])
     const [isLoading, setIsLoading] = useState(true)
