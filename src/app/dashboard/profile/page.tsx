@@ -30,7 +30,6 @@ const passwordSchema = z.object({
 export default function ProfilePage() {
     const [isLoading, setIsLoading] = useState(true)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const form = useForm({
         resolver: zodResolver(profileSchema),
         defaultValues: {
@@ -142,7 +141,7 @@ export default function ProfilePage() {
                                     />
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Le rôle est géré par l'administrateur système.
+                                    Le rôle est géré par l&apos;administrateur système.
                                 </p>
                             </div>
 
@@ -180,11 +179,11 @@ function PasswordForm() {
             })
             toast.success("Mot de passe modifié avec succès")
             form.reset()
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Password update error", error)
-            if (error.response?.data?.message) {
-                toast.error(error.response.data.message)
+            const apiError = error as { response?: { data?: { message?: string } } }
+            if (apiError.response?.data?.message) {
+                toast.error(apiError.response.data.message)
             } else {
                 toast.error("Erreur lors du changement de mot de passe")
             }
