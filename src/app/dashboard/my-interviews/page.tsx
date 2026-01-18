@@ -1,10 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Calendar, Clock, MapPin, Users, Video, Loader2, CheckCircle, XCircle, AlertCircle, CheckCircle2, X, Filter, Eye, XCircle as XCircleIcon, TrendingUp, CalendarDays, CheckCircle2 as CheckCircle2Icon, Ban } from "lucide-react"
+import { Calendar, Clock, MapPin, Users, Video, Loader2, CheckCircle, AlertCircle, CheckCircle2, X, Filter, Eye, XCircle as XCircleIcon, TrendingUp, CalendarDays, CheckCircle2 as CheckCircle2Icon, Ban } from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { useRole } from "@/hooks/useRole"
 import { UserRole } from "@/lib/roles"
