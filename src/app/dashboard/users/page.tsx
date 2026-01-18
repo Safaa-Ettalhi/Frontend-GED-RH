@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { useRole } from "@/hooks/useRole"
 import { UserRole, ROLE_LABELS } from "@/lib/roles"
-import { RoleGuard } from "@/components/auth/role-guard"
 import {
     DropdownMenu,
     DropdownMenuContent,

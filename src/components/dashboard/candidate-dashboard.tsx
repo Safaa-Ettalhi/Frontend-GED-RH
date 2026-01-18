@@ -51,7 +51,7 @@ export function CandidateDashboard({ user, organizationId }: CandidateDashboardP
                 })
             } catch (error) {
                 console.error("Erreur chargement dashboard", error)
-                const errorMessage = error instanceof Error ? error.message : "Erreur inconnue"
+                // const errorMessage = error instanceof Error ? error.message : "Erreur inconnue"
                 toast.error("Erreur lors du chargement des données")
             } finally {
                 setLoading(false)
