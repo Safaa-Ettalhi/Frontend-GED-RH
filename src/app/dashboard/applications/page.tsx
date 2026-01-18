@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Briefcase, Mail, Phone, History, Loader2, Trash2, X, Eye, Calendar, FileText, User, MapPin, Clock, CheckCircle2, AlertCircle, ChevronRight, Download } from "lucide-react"
+import { Briefcase, Mail, Phone, History, Loader2, Trash2, X, Eye, Calendar, FileText, User, MapPin, Clock, CheckCircle2, AlertCircle, Download } from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"

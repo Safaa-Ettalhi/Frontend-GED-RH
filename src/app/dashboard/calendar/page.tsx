@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Plus, Calendar, Edit, Trash2, Clock, MapPin, Users, Video, Loader2, Search, CheckCircle2, XCircle, AlertCircle, Calendar as CalendarIcon, RefreshCw } from "lucide-react"
+import { useEffect, useState, useCallback } from "react"
+import { Plus, Calendar, Edit, Trash2, Clock, MapPin, Users, Video, Loader2, Search, CheckCircle2, AlertCircle, Calendar as CalendarIcon, RefreshCw } from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -147,16 +147,6 @@ export default function CalendarPage() {
         notes: "",
     })
 
-    useEffect(() => {
-        if (organizationId) {
-            fetchInterviews()
-            fetchCandidates()
-            fetchJobOffers()
-            fetchUsers()
-            checkCalendarConfig()
-        }
-    }, [organizationId])
-
     const checkCalendarConfig = async () => {
         try {
             const res = await api.get('/interviews/calendar/info')
@@ -177,7 +167,7 @@ export default function CalendarPage() {
         }
     }
 
-    const fetchInterviews = async () => {
+    const fetchInterviews = useCallback(async () => {
         if (!organizationId) return
         
         try {
@@ -202,9 +192,9 @@ export default function CalendarPage() {
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [organizationId, selectedStatus, dateFrom, dateTo])
 
-    const fetchCandidates = async () => {
+    const fetchCandidates = useCallback(async () => {
         if (!organizationId) return
         
         try {
@@ -213,9 +203,9 @@ export default function CalendarPage() {
         } catch (error) {
             console.error("Error fetching candidates", error)
         }
-    }
+    }, [organizationId])
 
-    const fetchJobOffers = async () => {
+    const fetchJobOffers = useCallback(async () => {
         if (!organizationId) return
         
         try {
@@ -224,9 +214,9 @@ export default function CalendarPage() {
         } catch (error) {
             console.error("Error fetching job offers", error)
         }
-    }
+    }, [organizationId])
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         if (!organizationId) return
         
         try {
@@ -235,13 +225,23 @@ export default function CalendarPage() {
         } catch (error) {
             console.error("Error fetching users", error)
         }
-    }
+    }, [organizationId])
+
+    useEffect(() => {
+        if (organizationId) {
+            fetchInterviews()
+            fetchCandidates()
+            fetchJobOffers()
+            fetchUsers()
+            checkCalendarConfig()
+        }
+    }, [organizationId, fetchInterviews, fetchCandidates, fetchJobOffers, fetchUsers])
 
     useEffect(() => {
         if (organizationId) {
             fetchInterviews()
         }
-    }, [selectedStatus, dateFrom, dateTo, organizationId])
+    }, [organizationId, fetchInterviews])
 
     const handleCreate = () => {
         const initialParticipantIds = []
@@ -278,7 +278,6 @@ export default function CalendarPage() {
             ? InterviewStatus.COMPLETED
             : interview.status
 
-        // Récupérer le jobOfferId du candidat si disponible
         const candidate = candidates.find(c => c.id === interview.candidateId)
         setFormData({
             jobOfferId: candidate?.jobOfferId?.toString() || "",

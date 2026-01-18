@@ -81,7 +81,7 @@ type ApiErrorResponse = {
 }
 
 export default function FormsPage() {
-    const { user, role, organizationId } = useRole()
+    const { role, organizationId } = useRole()
     const [forms, setForms] = useState<Form[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")

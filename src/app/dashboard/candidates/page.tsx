@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Plus, Filter, Mail, Phone, Calendar, ArrowRight, Loader2, XCircle, History, Clock, User, Trash2, Edit, FileText, Download, X, MessageSquare, CheckCircle, XCircle as XCircleIcon, RotateCcw} from "lucide-react"
+import { Search, Plus, Filter, Mail, Phone, Calendar, ArrowRight, Loader2, XCircle, History, Clock, User, Trash2, Edit, FileText, Download, MessageSquare, CheckCircle, XCircle as XCircleIcon, RotateCcw} from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { Search, Plus, Upload, FileText, Download, Trash2, Eye, Loader2, X, CheckCircle2, Clock, Sparkles, Calendar } from "lucide-react"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -84,7 +84,7 @@ type ApiErrorResponse = {
 }
 
 export default function DocumentsPage() {
-    const { user, role, organizationId } = useRole()
+    const { role, organizationId } = useRole()
     const [documents, setDocuments] = useState<Document[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
@@ -105,13 +105,7 @@ export default function DocumentsPage() {
         description: "",
     })
 
-    useEffect(() => {
-        if (organizationId) {
-            fetchDocuments()
-        }
-    }, [organizationId])
-
-    const fetchDocuments = async () => {
+    const fetchDocuments = useCallback(async () => {
         if (!organizationId) return
         
         try {
@@ -125,7 +119,13 @@ export default function DocumentsPage() {
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [organizationId])
+
+    useEffect(() => {
+        if (organizationId) {
+            fetchDocuments()
+        }
+    }, [organizationId, fetchDocuments])
 
     const handleFileSelect = (file: File) => {
         if (!file) return
