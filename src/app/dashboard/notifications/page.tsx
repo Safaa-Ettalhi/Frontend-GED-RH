@@ -217,11 +217,14 @@ export default function NotificationsPage() {
         try {
             const res = await api.get(`/notifications?organizationId=${organizationId}&limit=100`)
             const data = res.data
+            console.log("[FRONTEND] Notifications response:", data)
             const notificationsList = Array.isArray(data) ? data : data.notifications || []
+            console.log("[FRONTEND] Notifications list:", notificationsList.length, "notifications")
             const sorted = notificationsList.sort(
                 (a: Notification, b: Notification) =>
                     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             )
+            console.log("[FRONTEND] Sorted notifications:", sorted.length, "notifications")
             setNotifications(sorted)
         } catch (error: unknown) {
             console.error("Error fetching notifications", error)
