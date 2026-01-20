@@ -2,21 +2,6 @@
 
 Application web Front-End moderne développée avec Next.js 16 pour la gestion électronique de documents orientée RH.
 
-## 📋 Table des matières
-
-- [Vue d'ensemble](#vue-densemble)
-- [Architecture](#architecture)
-- [Prérequis](#prérequis)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Scripts disponibles](#scripts-disponibles)
-- [Structure du projet](#structure-du-projet)
-- [Fonctionnalités principales](#fonctionnalités-principales)
-- [Technologies utilisées](#technologies-utilisées)
-- [Dépendances](#dépendances)
-- [CI/CD](#cicd)
-- [Déploiement](#déploiement)
-
 ## 🎯 Vue d'ensemble
 
 GEDPro Frontend est une application web moderne permettant aux équipes RH d'interagir efficacement avec la plateforme GED RH. L'application offre une expérience utilisateur fluide, claire et sécurisée pour la gestion des documents, candidats, entretiens, formulaires RH et comptes utilisateurs.
